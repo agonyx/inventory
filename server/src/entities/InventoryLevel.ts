@@ -8,14 +8,14 @@ export class InventoryLevel {
   id: string;
 
   @ManyToOne(() => ProductVariant, (variant) => variant.inventoryLevels, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'variant_id' })
+  @JoinColumn()
   variant: ProductVariant;
 
   @Column({ type: 'uuid' })
   variantId: string;
 
   @ManyToOne('Location', 'inventoryLevels', { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'location_id' })
+  @JoinColumn()
   location: import('./Location').Location;
 
   @Column({ type: 'uuid' })

@@ -15,8 +15,11 @@ export class ProductVariant {
   description: string | null;
 
   @ManyToOne('Product', 'variants', { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'product_id' })
+  @JoinColumn({ referencedColumnName: 'id' })
   product: import('./Product').Product;
+
+  @Column({ type: 'uuid' })
+  productId: string;
 
   @OneToMany('InventoryLevel', 'variant')
   inventoryLevels: import('./InventoryLevel').InventoryLevel[];

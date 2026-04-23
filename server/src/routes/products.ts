@@ -4,9 +4,13 @@ import { z } from 'zod';
 import { AppDataSource } from '../data-source';
 import { Product } from '../entities/Product';
 import { ProductVariant } from '../entities/ProductVariant';
+import { InventoryLevel } from '../entities/InventoryLevel';
+import { Location } from '../entities/Location';
 
 const productRepo = () => AppDataSource.getRepository(Product);
 const variantRepo = () => AppDataSource.getRepository(ProductVariant);
+const inventoryRepo = () => AppDataSource.getRepository(InventoryLevel);
+const locationRepo = () => AppDataSource.getRepository(Location);
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -47,11 +51,42 @@ app.get('/:id', async (c) => {
 // POST /api/products — create product with optional variants
 app.post('/', zValidator('json', createSchema), async (c) => {
   const data = c.req.valid('json');
+  // Save product first to get an ID, then create variants with explicit productId
+  const rawVariants = data.variants || [];
   const product = productRepo().create(data);
-  if (data.variants && data.variants.length > 0) {
-    product.variants = data.variants.map((v) => variantRepo().create(v));
-  }
+  (product as any).variants = [];
   await productRepo().save(product);
+
+  for (const v of rawVariants) {
+    const variant = variantRepo().create({ ...v, productId: product.id });
+    await variantRepo().save(variant);
+  }
+
+  // Auto-create inventory levels for each variant at all existing locations
+  const savedVariants = rawVariants.length > 0
+    ? await variantRepo().findBy({ productId: product.id })
+    : [];
+  if (savedVariants.length > 0) {
+    const locations = await locationRepo().find();
+    for (const variant of savedVariants) {
+      for (const loc of locations) {
+        // Check if inventory level already exists
+        const existing = await inventoryRepo().findOne({
+          where: { variantId: variant.id, locationId: loc.id },
+        });
+        if (!existing) {
+          const level = inventoryRepo().create({
+            variantId: variant.id,
+            locationId: loc.id,
+            quantity: 0,
+            reservedQuantity: 0,
+          });
+          await inventoryRepo().save(level);
+        }
+      }
+    }
+  }
+
   // Reload with relations
   const saved = await productRepo().findOne({
     where: { id: product.id },

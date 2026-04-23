@@ -15,7 +15,7 @@ export class StockAdjustment {
   id: string;
 
   @ManyToOne('InventoryLevel', { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'inventory_level_id' })
+  @JoinColumn()
   inventoryLevel: import('./InventoryLevel').InventoryLevel;
 
   @Column({ type: 'uuid' })

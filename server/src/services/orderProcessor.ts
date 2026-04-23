@@ -39,14 +39,36 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
 
     const orderItems: OrderItem[] = [];
     for (const item of payload.items) {
-      const variant = await manager.findOne(ProductVariant, { where: { sku: item.sku }, relations: ['inventoryLevels'] });
+      const variant = await manager.findOne(ProductVariant, { where: { sku: item.sku } });
       if (!variant) {
         throw new Error(`Variant with SKU ${item.sku} not found`);
       }
 
-      const inventoryLevel = variant.inventoryLevels[0];
-      if (!inventoryLevel) {
+      // Query inventory level directly — find one with sufficient stock
+      const inventoryLevels = await manager.find(InventoryLevel, {
+        where: { variantId: variant.id },
+        order: { quantity: 'DESC' },
+      });
+      if (inventoryLevels.length === 0) {
         throw new Error(`No inventory found for SKU ${item.sku}`);
+      }
+
+      // Use the location with the most stock
+      let inventoryLevel = inventoryLevels[0];
+      let remainingQty = item.quantity;
+
+      // Try to allocate across multiple locations if needed
+      if (inventoryLevel.quantity - inventoryLevel.reservedQuantity < item.quantity) {
+        // Try to split across locations
+        let totalAvailable = 0;
+        for (const il of inventoryLevels) {
+          totalAvailable += il.quantity - il.reservedQuantity;
+        }
+        if (totalAvailable < item.quantity) {
+          throw new Error(`Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${totalAvailable}`);
+        }
+        // Deduct from first location only (simple allocation)
+        inventoryLevel = inventoryLevels[0];
       }
 
       const available = inventoryLevel.quantity - inventoryLevel.reservedQuantity;
@@ -65,6 +87,7 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
         quantity: item.quantity,
         unitPrice: item.unitPrice,
       });
+      await manager.save(orderItem);
       orderItems.push(orderItem);
 
       const audit = manager.create(AuditLog, {

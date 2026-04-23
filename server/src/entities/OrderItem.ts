@@ -6,14 +6,14 @@ export class OrderItem {
   id: string;
 
   @ManyToOne('Order', 'items', { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'order_id' })
+  @JoinColumn()
   order: import('./Order').Order;
 
   @Column({ type: 'uuid' })
   orderId: string;
 
   @ManyToOne('ProductVariant', { onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'variant_id' })
+  @JoinColumn()
   variant: import('./ProductVariant').ProductVariant | null;
 
   @Column({ type: 'uuid', nullable: true })

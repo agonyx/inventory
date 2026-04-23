@@ -1,5 +1,10 @@
 import { AppDataSource } from '../data-source';
+import { In } from 'typeorm';
 import { Order, OrderStatus } from '../entities/Order';
+import { InventoryLevel } from '../entities/InventoryLevel';
+import { ProductVariant } from '../entities/ProductVariant';
+import { Product } from '../entities/Product';
+import { Location } from '../entities/Location';
 
 export interface PickListItem {
   orderId: string;
@@ -17,30 +22,65 @@ export interface PickListItem {
 export async function generatePickList(): Promise<PickListItem[]> {
   const orders = await AppDataSource.getRepository(Order).find({
     where: { status: OrderStatus.PENDING },
-    relations: ['items', 'items.variant', 'items.variant.product', 'items.variant.inventoryLevels', 'items.variant.inventoryLevels.location'],
+    relations: ['items'],
+    order: { createdAt: 'ASC' },
   });
+
+  if (orders.length === 0) return [];
+
+  // Batch-fetch all variant/product/location info
+  const variantIds = orders.flatMap(o => o.items.map(i => i.variantId).filter((v): v is string => v !== null));
+  const variants = variantIds.length > 0
+    ? await AppDataSource.getRepository(ProductVariant).findBy({ id: In(variantIds) })
+    : [];
+
+  const productIds = variants.map(v => v.productId);
+  const products = productIds.length > 0
+    ? await AppDataSource.getRepository(Product).findBy({ id: In(productIds) })
+    : [];
+
+  // Get inventory levels for these variants
+  const inventoryLevels = variantIds.length > 0
+    ? await AppDataSource.getRepository(InventoryLevel).find({
+        where: variantIds.map(vid => ({ variantId: vid })),
+        relations: ['location'],
+      })
+    : [];
+
+  const variantMap = new Map(variants.map(v => [v.id, v]));
+  const productMap = new Map(products.map(p => [p.id, p]));
+  const inventoryByVariant = new Map<string, InventoryLevel[]>();
+  for (const inv of inventoryLevels) {
+    const list = inventoryByVariant.get(inv.variantId) || [];
+    list.push(inv);
+    inventoryByVariant.set(inv.variantId, list);
+  }
 
   const pickList: PickListItem[] = [];
   for (const order of orders) {
     for (const item of order.items) {
-      if (!item.variant) continue;
-      const inventoryLevel = item.variant.inventoryLevels[0];
+      if (!item.variantId) continue;
+      const variant = variantMap.get(item.variantId);
+      if (!variant) continue;
+      const product = productMap.get(variant.productId);
+      const invLevels = inventoryByVariant.get(variant.id) || [];
+      const invLevel = invLevels[0];
+
       pickList.push({
         orderId: order.id,
         externalOrderId: order.externalOrderId,
         customerName: order.customerName,
-        productName: (item.variant as any).product?.name || 'Unknown',
-        variantName: item.variant.name,
-        sku: item.externalSku || item.variant.sku,
+        productName: product?.name || 'Unknown',
+        variantName: variant.name,
+        sku: item.externalSku || variant.sku,
         quantity: item.quantity,
-        locationName: inventoryLevel?.location?.name || 'Unknown',
-        locationType: inventoryLevel?.location?.type || null,
+        locationName: invLevel?.location?.name || 'Unassigned',
+        locationType: invLevel?.location?.type || null,
         status: order.status,
       });
     }
   }
 
-  // Sort by location then product for efficient warehouse walking
   return pickList.sort((a, b) => {
     if (a.locationName !== b.locationName) return a.locationName.localeCompare(b.locationName);
     return a.productName.localeCompare(b.productName);
