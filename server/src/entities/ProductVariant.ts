@@ -18,9 +18,6 @@ export class ProductVariant {
   @JoinColumn({ name: 'product_id' })
   product: import('./Product').Product;
 
-  @Column({ type: 'uuid' })
-  productId: string;
-
   @OneToMany('InventoryLevel', 'variant')
   inventoryLevels: import('./InventoryLevel').InventoryLevel[];
 
