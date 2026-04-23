@@ -21,13 +21,11 @@ export interface WebhookPayload {
 
 export async function processWebhookOrder(payload: WebhookPayload): Promise<Order> {
   return await AppDataSource.transaction(async (manager) => {
-    // Check for duplicate
     const existing = await manager.findOne(Order, { where: { externalOrderId: payload.externalOrderId } });
     if (existing) {
       throw new Error(`Order ${payload.externalOrderId} already exists`);
     }
 
-    // Create order
     const order = manager.create(Order, {
       externalOrderId: payload.externalOrderId,
       customerName: payload.customerName,
@@ -39,7 +37,6 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
     });
     await manager.save(order);
 
-    // Process items and deduct stock
     const orderItems: OrderItem[] = [];
     for (const item of payload.items) {
       const variant = await manager.findOne(ProductVariant, { where: { sku: item.sku }, relations: ['inventoryLevels'] });
@@ -52,11 +49,11 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
         throw new Error(`No inventory found for SKU ${item.sku}`);
       }
 
-      if (inventoryLevel.quantity - inventoryLevel.reservedQuantity < item.quantity) {
-        throw new Error(`Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${inventoryLevel.quantity - inventoryLevel.reservedQuantity}`);
+      const available = inventoryLevel.quantity - inventoryLevel.reservedQuantity;
+      if (available < item.quantity) {
+        throw new Error(`Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${available}`);
       }
 
-      // Deduct stock
       inventoryLevel.quantity -= item.quantity;
       inventoryLevel.reservedQuantity += item.quantity;
       await manager.save(inventoryLevel);
@@ -70,7 +67,6 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
       });
       orderItems.push(orderItem);
 
-      // Audit log
       const audit = manager.create(AuditLog, {
         action: AuditAction.CREATE_ORDER,
         entityType: 'inventory',

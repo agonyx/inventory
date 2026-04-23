@@ -3,10 +3,12 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { AppDataSource } from '../data-source';
 import { Order, OrderStatus } from '../entities/Order';
+import { InventoryLevel } from '../entities/InventoryLevel';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
 
 const orderRepo = () => AppDataSource.getRepository(Order);
 const auditRepo = () => AppDataSource.getRepository(AuditLog);
+const inventoryRepo = () => AppDataSource.getRepository(InventoryLevel);
 
 const statusSchema = z.object({
   status: z.nativeEnum(OrderStatus),
@@ -48,40 +50,29 @@ app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
   order.status = status;
   await orderRepo().save(order);
 
-  // If packing/shipping, release reserved stock
-  if (status === OrderStatus.PACKED || status === OrderStatus.SHIPPED) {
+  // Handle stock release based on status change
+  if (status === OrderStatus.PACKED || status === OrderStatus.SHIPPED || status === OrderStatus.CANCELLED) {
     for (const item of order.items) {
       if (!item.variant) continue;
-      // Find inventory level for this variant - use the first one
-      const { InventoryLevel } = await import('../entities/InventoryLevel');
-      const invRepo = AppDataSource.getRepository(InventoryLevel);
-      const level = await invRepo.findOne({ where: { variantId: item.variant.id } });
-      if (level) {
+      const level = await inventoryRepo().findOne({ where: { variantId: item.variant.id } });
+      if (!level) continue;
+
+      if (status === OrderStatus.PACKED) {
+        // Just unreserve — stock stays deducted
         level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-        if (status === OrderStatus.SHIPPED) {
-          level.quantity = Math.max(0, level.quantity - item.quantity);
-        }
-        await invRepo.save(level);
+      } else if (status === OrderStatus.SHIPPED) {
+        // Unreserve and deduct from actual stock
+        level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
+        level.quantity = Math.max(0, level.quantity - item.quantity);
+      } else if (status === OrderStatus.CANCELLED) {
+        // Return reserved back to available
+        level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
+        level.quantity += item.quantity;
       }
+      await inventoryRepo().save(level);
     }
   }
 
-  // If cancelled, release all reserved stock
-  if (status === OrderStatus.CANCELLED) {
-    for (const item of order.items) {
-      if (!item.variant) continue;
-      const { InventoryLevel } = await import('../entities/InventoryLevel');
-      const invRepo = AppDataSource.getRepository(InventoryLevel);
-      const level = await invRepo.findOne({ where: { variantId: item.variant.id } });
-      if (level) {
-        level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-        level.quantity += item.quantity; // return reserved to available
-        await invRepo.save(level);
-      }
-    }
-  }
-
-  // Audit log
   const audit = auditRepo().create({
     action: AuditAction.UPDATE_ORDER_STATUS,
     entityType: 'order',
@@ -92,7 +83,6 @@ app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
   });
   await auditRepo().save(audit);
 
-  // Reload
   const updated = await orderRepo().findOne({
     where: { id },
     relations: ['items', 'items.variant', 'items.variant.product'],

@@ -26,7 +26,10 @@ app.post('/orders', zValidator('json', webhookSchema), async (c) => {
     return c.json({ success: true, orderId: order.id, externalOrderId: order.externalOrderId, status: order.status }, 201);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    const status = message.includes('already exists') ? 409 : message.includes('not found') || message.includes('No inventory') ? 404 : message.includes('Insufficient') ? 400 : 500;
+    const status = message.includes('already exists') ? 409
+      : message.includes('not found') || message.includes('No inventory') ? 404
+      : message.includes('Insufficient') ? 400
+      : 500;
     return c.json({ success: false, error: message }, status as 400 | 404 | 409 | 500);
   }
 });
