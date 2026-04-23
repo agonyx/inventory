@@ -12,6 +12,17 @@ app.route('/api/products', productsRoute);
 app.route('/api/inventory', inventoryRoute);
 app.route('/api/locations', locationsRoute);
 
+import webhookRoute from './routes/webhooks';
+import ordersRoute from './routes/orders';
+
+app.route('/webhooks', webhookRoute);
+app.route('/api/orders', ordersRoute);
+
+import pickListRoute from './routes/pickList';
+import alertsRoute from './routes/alerts';
+app.route('/api/pick-list', pickListRoute);
+app.route('/api/alerts', alertsRoute);
+
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
 app.onError((err, c) => {
