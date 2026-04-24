@@ -13,15 +13,19 @@
   "dependencies": {
     "@hono/node-server": "^2.0.0",
     "@hono/zod-validator": "^0.2.0",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^16.4.0",
     "hono": "^4.4.0",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.11.0",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.20",
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
     "@types/bun": "latest",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.11.0",
     "typescript": "^5.4.0"
   }
