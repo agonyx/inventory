@@ -43,54 +43,62 @@ app.get('/:id', async (c) => {
 app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
   const id = c.req.param('id');
   const { status } = c.req.valid('json');
-  const order = await orderRepo().findOne({
-    where: { id },
-    relations: ['items', 'items.variant'],
-  });
-  if (!order) throw new AppError(404, ErrorCode.NOT_FOUND, 'Order not found');
 
-  const oldStatus = order.status;
-  order.status = status;
-  await orderRepo().save(order);
-
-  // Handle stock release based on status change
-  if (status === OrderStatus.PACKED || status === OrderStatus.SHIPPED || status === OrderStatus.CANCELLED) {
-    for (const item of order.items) {
-      if (!item.variant) continue;
-      const level = await inventoryRepo().findOne({ where: { variantId: item.variant.id } });
-      if (!level) continue;
-
-      if (status === OrderStatus.PACKED) {
-        // Just unreserve — stock stays deducted
-        level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-      } else if (status === OrderStatus.SHIPPED) {
-        // Unreserve and deduct from actual stock
-        level.quantity = Math.max(0, level.quantity - item.quantity);
-        level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-      } else if (status === OrderStatus.CANCELLED) {
-        // Return reserved back to available
-        level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-        level.quantity += item.quantity;
-      }
-      await inventoryRepo().save(level);
+  const result = await AppDataSource.transaction(async (manager) => {
+    const order = await manager.findOne(Order, {
+      where: { id },
+      relations: ['items', 'items.variant'],
+    });
+    if (!order) {
+      throw new AppError(404, ErrorCode.NOT_FOUND, 'Order not found');
     }
-  }
 
-  const audit = auditRepo().create({
-    action: AuditAction.UPDATE_ORDER_STATUS,
-    entityType: 'order',
-    entityId: id,
-    oldValues: { status: oldStatus },
-    newValues: { status },
-    notes: `Order status changed from ${oldStatus} to ${status}`,
-  });
-  await auditRepo().save(audit);
+    const oldStatus = order.status;
+    order.status = status;
+    await manager.save(order);
 
-  const updated = await orderRepo().findOne({
-    where: { id },
-    relations: ['items', 'items.variant', 'items.variant.product'],
+    // Handle stock release based on status change
+    if (status === OrderStatus.PACKED || status === OrderStatus.SHIPPED || status === OrderStatus.CANCELLED) {
+      for (const item of order.items) {
+        if (!item.variant) continue;
+
+        // Read inventory level inside transaction with lock
+        const level = await manager.findOne(InventoryLevel, {
+          where: { variantId: item.variant.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!level) continue;
+
+        if (status === OrderStatus.PACKED) {
+          level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
+        } else if (status === OrderStatus.SHIPPED) {
+          level.quantity = Math.max(0, level.quantity - item.quantity);
+          level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
+        } else if (status === OrderStatus.CANCELLED) {
+          level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
+          level.quantity += item.quantity;
+        }
+        await manager.save(level);
+      }
+    }
+
+    const audit = manager.create(AuditLog, {
+      action: AuditAction.UPDATE_ORDER_STATUS,
+      entityType: 'order',
+      entityId: id,
+      oldValues: { status: oldStatus },
+      newValues: { status },
+      notes: `Order status changed from ${oldStatus} to ${status}`,
+    });
+    await manager.save(audit);
+
+    return await manager.findOne(Order, {
+      where: { id },
+      relations: ['items', 'items.variant', 'items.variant.product'],
+    });
   });
-  return c.json(updated);
+
+  return c.json(result);
 });
 
 export default app;

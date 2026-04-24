@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index, VersionColumn } from 'typeorm';
 import { ProductVariant } from './ProductVariant';
 
 @Entity('inventory_levels')
@@ -32,6 +32,9 @@ export class InventoryLevel {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @VersionColumn({ default: 1 })
+  version: number;
 
   get availableQuantity(): number {
     return this.quantity - this.reservedQuantity;
