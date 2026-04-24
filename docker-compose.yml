@@ -1,10 +1,17 @@
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: niche_inventory
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: niche_inv_2026
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-niche_inv_2026}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -17,13 +24,16 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://postgres:niche_inv_2026@db:5432/niche_inventory
-      AUTH_TOKEN: niche-inventory-secret-2026
-      PORT: "3002"
     ports:
       - "3002:3002"
 
@@ -31,6 +41,11 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     depends_on:
       - server
     ports:
