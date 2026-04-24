@@ -111,6 +111,7 @@ app.get('/', async (c) => {
     const allResults = await productRepo().find({
       where: effectiveWhere,
       relations,
+      select: ['id', 'name', 'sku', 'category', 'price', 'lowStockThreshold', 'supplierId', 'images', 'createdAt', 'updatedAt'],
       order: { [sortBy]: sortDir },
     });
 
@@ -165,6 +166,7 @@ app.get('/', async (c) => {
     const [results, count] = await productRepo().findAndCount({
       where: findWhere,
       relations,
+      select: ['id', 'name', 'sku', 'category', 'price', 'lowStockThreshold', 'supplierId', 'images', 'createdAt', 'updatedAt'],
       order: { [sortBy]: sortDir },
       skip: (page - 1) * limit,
       take: limit,

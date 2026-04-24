@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  server-checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: niche_inventory_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+        working-directory: server
+      - name: Type check
+        run: npx tsc --noEmit
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/niche_inventory_test
+          JWT_SECRET: ci-test-secret
+          NODE_ENV: test
+      - name: Run tests
+        run: for f in tests/*.test.ts; do echo "--- $f ---"; bun test "$f" || exit 1; done
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/niche_inventory_test
+          JWT_SECRET: ci-test-secret
+          WEBHOOK_SECRET: ci-test-whsec
+          ADMIN_EMAIL: admin@test.com
+          ADMIN_PASSWORD: TestPass123!
+          NODE_ENV: test
+
+  web-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+        working-directory: web
+      - name: Type check
+        run: npx tsc --noEmit
+        working-directory: web
+      - name: Build
+        run: bun run build
+        working-directory: web

@@ -1,8 +1,9 @@
 import type { Context } from 'hono';
 import { AppError, ErrorCode } from '../errors/app-error';
+import { logger } from '../utils/logger';
 
 export function errorHandler(err: Error, c: Context) {
-  console.error('Request error:', err);
+  logger.error({ err, path: c.req.path }, 'Request error');
 
   if (err instanceof AppError) {
     return c.json(

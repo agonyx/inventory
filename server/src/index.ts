@@ -3,9 +3,14 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { AppDataSource } from './data-source';
+import { logger } from './utils/logger';
+import { requestLogger } from './middleware/request-logger';
 const app = new Hono();
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:5174'];
 app.use(cors({ origin: allowedOrigins }));
+
+import { setupDocs } from './utils/openapi';
+setupDocs(app);
 
 import webhookRoute from './routes/webhooks';
 import { errorHandler } from './middleware/error-handler';
@@ -39,6 +44,8 @@ app.use('/uploads/*', serveStatic({ root: './' }));
 
 // Auth routes (no JWT required — not under /api/*)
 app.route('/auth', authRoute);
+
+app.use('*', requestLogger);
 
 // Auth middleware for /api/* routes only
 app.use('/api/*', jwtAuth);
@@ -98,8 +105,8 @@ app.route('/api/returns', returnsRoute);
 app.onError(errorHandler);
 const port = parseInt(process.env.PORT || '3002');
 AppDataSource.initialize().then(async () => {
-  console.log('Database connected');
+  logger.info('Database connected');
   const { serve } = await import('@hono/node-server');
   serve({ fetch: app.fetch, port });
-  console.log(`Server running on http://localhost:${port}`);
-}).catch((err) => { console.error('Failed to start:', err); process.exit(1); });
+  logger.info({ port }, 'Server running');
+}).catch((err) => { logger.error({ err }, 'Failed to start'); process.exit(1); });
