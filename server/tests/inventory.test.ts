@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
-import { initTestDb, destroyTestDb, cleanTables, seed, authHeader } from './setup';
+import { initTestDb, destroyTestDb, cleanTables, seed, getTestAuthHeader } from './setup';
 import app from '../src/routes/inventory';
 import { AppDataSource } from '../src/data-source';
 import { InventoryLevel } from '../src/entities/InventoryLevel';
@@ -8,7 +8,11 @@ import { AuditLog, AuditAction } from '../src/entities/AuditLog';
 
 beforeAll(initTestDb);
 afterAll(destroyTestDb);
-beforeEach(cleanTables);
+let authHeader: Record<string, string>;
+beforeEach(async () => {
+  await cleanTables();
+  authHeader = await getTestAuthHeader();
+});
 
 describe('Inventory API', () => {
   test('GET / returns empty array when no inventory', async () => {

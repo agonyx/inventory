@@ -18,9 +18,28 @@ import { InventoryLevel } from '../src/entities/InventoryLevel';
 import { Order, OrderStatus } from '../src/entities/Order';
 import { OrderItem } from '../src/entities/OrderItem';
 import { AuditLog } from '../src/entities/AuditLog';
+import { User, UserRole } from '../src/entities/User';
+import { generateTokens } from '../src/services/auth';
 
 export const AUTH_TOKEN = process.env.AUTH_TOKEN || 'niche-inventory-secret-2026';
-export const authHeader = { Authorization: `Bearer ${AUTH_TOKEN}` };
+
+// Create a test user and generate a JWT token for it
+let testUser: User | null = null;
+
+export async function getTestAuthHeader() {
+  if (!testUser) {
+    const userRepo = AppDataSource.getRepository(User);
+    testUser = userRepo.create({
+      email: 'test@example.com',
+      passwordHash: 'not-used-in-tests',
+      name: 'Test User',
+      role: UserRole.ADMIN,
+    });
+    testUser = await userRepo.save(testUser);
+  }
+  const { accessToken } = generateTokens(testUser);
+  return { Authorization: `Bearer ${accessToken}` };
+}
 
 /** Call in beforeAll — initializes test DB, drops/recreates schema */
 export async function initTestDb() {
@@ -42,9 +61,11 @@ export async function cleanTables() {
   if (!AppDataSource.isInitialized) return;
   await AppDataSource.query(`
     TRUNCATE TABLE audit_logs, stock_adjustments, order_items, orders,
-             inventory_levels, product_variants, products, locations
+             inventory_levels, product_variants, products, locations, users
     RESTART IDENTITY CASCADE
   `);
+  // Reset cached test user after truncate
+  testUser = null;
 }
 
 // ─── Seed helpers ──────────────────────────────────────────────────

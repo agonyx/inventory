@@ -94,7 +94,3 @@ export function createMockDataSource() {
     initialize: () => Promise.resolve(),
   };
 }
-
-/** AUTH_TOKEN value used in tests */
-export const TEST_AUTH_TOKEN = 'test-token-123';
-export const authHeader = { Authorization: `Bearer ${TEST_AUTH_TOKEN}` };

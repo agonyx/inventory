@@ -1,10 +1,14 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
-import { initTestDb, destroyTestDb, cleanTables, seed, authHeader } from './setup';
+import { initTestDb, destroyTestDb, cleanTables, seed, getTestAuthHeader } from './setup';
 import app from '../src/routes/products';
 
 beforeAll(initTestDb);
 afterAll(destroyTestDb);
-beforeEach(cleanTables);
+let authHeader: Record<string, string>;
+beforeEach(async () => {
+  await cleanTables();
+  authHeader = await getTestAuthHeader();
+});
 
 describe('Products API', () => {
   test('GET / returns empty array when no products', async () => {
