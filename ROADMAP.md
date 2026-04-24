@@ -3,7 +3,7 @@
 > Last updated: 2026-04-24
 > Project: ~/projects/niche-inventory
 > Stack: Hono + TypeORM + PostgreSQL (server), React + Vite + TailwindCSS (web), Docker + nginx
-> Current state: Phase 5 complete — 123 integration tests, RBAC + User Management, responsive UI, Docker deployment
+> Current state: Phase 6 complete — 187 integration tests, full integrations ecosystem (suppliers, purchase orders, shipping, returns, email, product images)
 
 ---
 
@@ -254,50 +254,53 @@
 
 ---
 
-## Phase 6 — Integrations & Ecosystem (Est: 3–4 weeks)
+## Phase 6 — Integrations & Ecosystem ✅ COMPLETE
 
 > Goal: Connect to external systems — sales channels, shipping, accounting.
 
 ### 6.1 Product Images
-- [ ] Add `images` JSON column to Product (array of URLs) or separate `ProductImage` entity
-- [ ] Image upload endpoint: `POST /api/products/:id/images` — accept multipart, store to S3-compatible storage (OVH/S3/Cloudflare R2)
-- [ ] `DELETE /api/products/:id/images/:imageId`
-- [ ] Frontend: image upload dropzone in ProductForm, image gallery on product detail, thumbnail in table
-- [ ] Consider `@aws-sdk/client-s3` or `tus` for resumable uploads
+- [x] Add `images` simple-array column to Product
+- [x] Image upload endpoint: `POST /api/products/:id/images` — multipart, local filesystem storage
+- [x] `DELETE /api/products/:id/images/:index`
+- [x] Frontend: image upload dropzone in ProductForm, image gallery, thumbnail in table
+- [ ] Future: S3-compatible storage (OVH/Cloudflare R2) via `@aws-sdk/client-s3`
 
 ### 6.2 Supplier Management
-- [ ] Add `Supplier` entity: id, name, contactName, email, phone, address, notes, createdAt
-- [ ] Full CRUD: `GET/POST/PATCH/DELETE /api/suppliers`
-- [ ] Add `supplierId` FK to Product entity
-- [ ] Frontend: `/suppliers` page, supplier dropdown on product form
-- [ ] Supplier detail page: linked products, lead time tracking
+- [x] Add `Supplier` entity: id, name, contactName, email, phone, address, notes, createdAt
+- [x] Full CRUD: `GET/POST/PATCH/DELETE /api/suppliers` with pagination, search, sort
+- [x] Add `supplierId` FK to Product entity
+- [x] Frontend: `/suppliers` page with table, create/edit modal, delete confirmation
+- [x] Supplier dropdown on product form
+- [ ] Future: supplier detail page with linked products, lead time tracking
 
 ### 6.3 Purchase Orders
-- [ ] Add `PurchaseOrder` entity: id, supplierId, status (draft/sent/partially_received/received/cancelled), notes, createdAt
-- [ ] Add `PurchaseOrderItem` entity: id, poId, variantId, quantity, receivedQuantity, unitCost
-- [ ] CRUD + status workflow (similar to sales orders)
-- [ ] `POST /api/purchase-orders/:id/receive` — partial or full receiving, auto-adjusts inventory
-- [ ] Frontend: `/purchase-orders` page, create form, receive workflow
-- [ ] Auto-generate PO suggestions when stock drops below threshold
+- [x] Add `PurchaseOrder` entity with status workflow (draft/sent/partially_received/received/cancelled)
+- [x] Add `PurchaseOrderItem` entity: variantId, quantity, receivedQuantity, unitCost
+- [x] Full CRUD + send/receive/cancel endpoints
+- [x] `POST /api/purchase-orders/:id/receive` — partial/full receiving, auto-adjusts inventory
+- [x] Frontend: `/purchase-orders` page, create modal, receive workflow
+- [ ] Future: auto-generate PO suggestions when stock drops below threshold
 
 ### 6.4 Shipping Integration
-- [ ] Add `trackingNumber` and `shippingCarrier` fields to Order entity
-- [ ] Add `trackingUrl` computed field based on carrier
-- [ ] Support carriers: DHL, UPS, FedEx, USPS, Royal Mail (URL templates)
-- [ ] Optional: ShipStation/EasyPost API integration for label generation
-- [ ] Frontend: tracking number input on order detail, tracking link display
+- [x] Add `trackingNumber` and `shippingCarrier` fields to Order entity
+- [x] Tracking URL generation based on carrier (DHL, UPS, FedEx, USPS, Royal Mail)
+- [x] `PATCH /api/orders/:id/shipping` — set tracking info (admin, manager, warehouse)
+- [x] Frontend: tracking number input on orders page, clickable tracking link
+- [ ] Future: ShipStation/EasyPost API integration for label generation
 
 ### 6.5 Returns / RMAs
-- [ ] Add `Return` entity: id, orderId, reason, status (requested/approved/received/refunded/rejected), notes, createdAt
-- [ ] Add `ReturnItem` entity: id, returnId, variantId, quantity, condition (new/damaged/used)
-- [ ] On approved + received: auto-adjust inventory (add stock back)
-- [ ] Frontend: `/returns` page, create from order detail, approval workflow
+- [x] Add `Return` entity with status workflow (requested/approved/received/refunded/rejected)
+- [x] Add `ReturnItem` entity: variantId, quantity, condition (new/damaged/used)
+- [x] Approval workflow: approve/reject/receive/refund endpoints
+- [x] On receive: auto-adjust inventory (add stock back)
+- [x] Frontend: `/returns` page with status badges, create modal, action buttons
 
 ### 6.6 Email Notifications
-- [ ] Add email service (Resend, SendGrid, or SMTP)
-- [ ] Templates: low stock alert, order confirmation, shipping confirmation
-- [ ] Configurable: which notifications to send, to which email addresses
-- [ ] Send on relevant events via the notification system (Phase 4.3)
+- [x] Email service via nodemailer (SMTP)
+- [x] Templates: low stock alert, order confirmation, shipping confirmation
+- [x] Event hooks: order created → confirmation, status shipped → shipping notification
+- [x] SMTP config via env vars (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
+- [ ] Future: Resend/SendGrid integration, configurable notification preferences
 
 ---
 
