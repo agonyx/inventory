@@ -7,6 +7,7 @@ import {
   ChevronRight,
   AlertTriangle,
   ArrowUpDown,
+  Image as ImageIcon,
 } from 'lucide-react';
 import type {
   Product,
@@ -121,7 +122,7 @@ export default function ProductTable({
 
           return (
             <div key={product.id} className={`p-4 ${isSelected ? 'bg-blue-50/50' : ''}`}>
-              <div className="flex items-start gap-2">
+               <div className="flex items-start gap-2">
                 <input
                   type="checkbox"
                   checked={isSelected}
@@ -131,6 +132,17 @@ export default function ProductTable({
                   }}
                   className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
                 />
+                {product.images && product.images.length > 0 ? (
+                  <img
+                    src={product.images[0]}
+                    alt={product.name}
+                    className="w-10 h-10 rounded object-cover flex-shrink-0 mt-0.5"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <ImageIcon size={16} className="text-gray-300" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <button
                     onClick={() => toggleExpand(product.id)}
@@ -292,6 +304,7 @@ export default function ProductTable({
                 />
               </th>
               <th className="w-8 px-2 py-3" />
+              <th className="w-10 px-2 py-3" />
               <SortableHeader label="Name" column="name" currentSortBy={sortBy} currentSortDir={sortDir} onSort={onSort} />
               <SortableHeader label="SKU" column="sku" currentSortBy={sortBy} currentSortDir={sortDir} onSort={onSort} />
               <SortableHeader label="Category" column="category" currentSortBy={sortBy} currentSortDir={sortDir} onSort={onSort} />
@@ -331,6 +344,19 @@ export default function ProductTable({
                         <ChevronDown size={16} />
                       ) : (
                         <ChevronRight size={16} />
+                      )}
+                    </td>
+                    <td className="px-2 py-3">
+                      {product.images && product.images.length > 0 ? (
+                        <img
+                          src={product.images[0]}
+                          alt={product.name}
+                          className="w-8 h-8 rounded object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
+                          <ImageIcon size={14} className="text-gray-300" />
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3 font-medium text-gray-900">
@@ -395,7 +421,7 @@ export default function ProductTable({
                   {/* Expanded variants */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={10} className="p-0">
+                      <td colSpan={11} className="p-0">
                         <div className="bg-gray-50/80 px-12 py-4">
                           {!product.variants.length ? (
                             <p className="text-gray-400 text-sm italic">

@@ -7,6 +7,7 @@ import { Order, OrderStatus } from '../entities/Order';
 import { InventoryLevel } from '../entities/InventoryLevel';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
 import { AppError, ErrorCode } from '../errors/app-error';
+import { sendShippingConfirmation } from '../services/email';
 import { errorHandler } from '../middleware/error-handler';
 import { parsePagination, buildPaginationResponse, paginate } from '../utils/pagination';
 import { parseSort } from '../utils/sort';
@@ -23,12 +24,25 @@ import {
   type PdfTableRow,
 } from '../utils/pdf';
 
+const CARRIER_TRACKING_URLS: Record<string, (tracking: string) => string> = {
+  dhl: (t) => `https://www.dhl.com/track?id=${encodeURIComponent(t)}`,
+  ups: (t) => `https://www.ups.com/track?tracknum=${encodeURIComponent(t)}`,
+  fedex: (t) => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(t)}`,
+  usps: (t) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(t)}`,
+  royal_mail: (t) => `https://www.royalmail.com/track-your-item/?trackNumber=${encodeURIComponent(t)}`,
+};
+
 const orderRepo = () => AppDataSource.getRepository(Order);
 const auditRepo = () => AppDataSource.getRepository(AuditLog);
 const inventoryRepo = () => AppDataSource.getRepository(InventoryLevel);
 
 const statusSchema = z.object({
   status: z.nativeEnum(OrderStatus),
+});
+
+const shippingSchema = z.object({
+  trackingNumber: z.string().min(1),
+  shippingCarrier: z.string().min(1),
 });
 
 const ORDER_SORT_COLUMNS = ['createdAt', 'totalAmount', 'customerName'];
@@ -204,6 +218,12 @@ app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
     });
   });
 
+  if (status === OrderStatus.SHIPPED && result) {
+    sendShippingConfirmation(result).catch((err) => {
+      console.error('[orders] Failed to send shipping confirmation email:', err);
+    });
+  }
+
   return c.json(result);
 });
 
@@ -310,6 +330,60 @@ app.get('/:id/packing-slip', async (c) => {
   const buf = await pdfToBuffer(doc);
   const filename = `packing-slip-${order.externalOrderId}.pdf`;
   return new Response(new Uint8Array(buf), { headers: pdfResponseHeaders(filename, download) });
+});
+
+app.patch('/:id/shipping', zValidator('json', shippingSchema), async (c) => {
+  const id = c.req.param('id');
+  const { trackingNumber, shippingCarrier } = c.req.valid('json');
+
+  const result = await AppDataSource.transaction(async (manager) => {
+    const order = await manager.findOne(Order, {
+      where: { id },
+      relations: ['items', 'items.variant', 'items.variant.product'],
+    });
+    if (!order) {
+      throw new AppError(404, ErrorCode.NOT_FOUND, 'Order not found');
+    }
+
+    order.trackingNumber = trackingNumber;
+    order.shippingCarrier = shippingCarrier;
+    await manager.save(order);
+
+    const audit = manager.create(AuditLog, {
+      action: AuditAction.UPDATE,
+      entityType: 'order',
+      entityId: id,
+      oldValues: { trackingNumber: null, shippingCarrier: null },
+      newValues: { trackingNumber, shippingCarrier },
+      notes: `Shipping info updated: ${shippingCarrier} - ${trackingNumber}`,
+    });
+    await manager.save(audit);
+
+    return order;
+  });
+
+  return c.json(result);
+});
+
+app.get('/:id/tracking-url', async (c) => {
+  const id = c.req.param('id');
+  const order = await orderRepo().findOne({ where: { id } });
+  if (!order) throw new AppError(404, ErrorCode.NOT_FOUND, 'Order not found');
+
+  if (!order.trackingNumber || !order.shippingCarrier) {
+    throw new AppError(404, ErrorCode.NOT_FOUND, 'No tracking information available');
+  }
+
+  const urlBuilder = CARRIER_TRACKING_URLS[order.shippingCarrier];
+  if (!urlBuilder) {
+    throw new AppError(404, ErrorCode.NOT_FOUND, `Unknown carrier: ${order.shippingCarrier}`);
+  }
+
+  return c.json({
+    trackingUrl: urlBuilder(order.trackingNumber),
+    trackingNumber: order.trackingNumber,
+    shippingCarrier: order.shippingCarrier,
+  });
 });
 
 export default app;

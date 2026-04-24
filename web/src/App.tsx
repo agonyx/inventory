@@ -14,7 +14,13 @@ import LocationsPage from './pages/LocationsPage';
 import InventoryPage from './pages/InventoryPage';
 import TransfersPage from './pages/TransfersPage';
 import StocktakesPage from './pages/StocktakesPage';
+import ReportsPage from './pages/ReportsPage';
+import WebhookConfigsPage from './pages/WebhookConfigsPage';
+import SettingsPage from './pages/SettingsPage';
+import SuppliersPage from './pages/SuppliersPage';
+import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import NotFoundPage from './pages/NotFoundPage';
+import ReturnsPage from './pages/ReturnsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useAuth();
@@ -40,12 +46,18 @@ export default function App() {
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/" element={<ProductsPage />} />
               <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/returns" element={<ReturnsPage />} />
+              <Route path="/inventory" element={<InventoryPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/transfers" element={<TransfersPage />} />
+              <Route path="/stocktakes" element={<StocktakesPage />} />
               <Route path="/pick-list" element={<PickListPage />} />
               <Route path="/audit-logs" element={<AuditLogsPage />} />
               <Route path="/locations" element={<LocationsPage />} />
-              <Route path="/inventory" element={<InventoryPage />} />
-              <Route path="/transfers" element={<TransfersPage />} />
-              <Route path="/stocktakes" element={<StocktakesPage />} />
+              <Route path="/suppliers" element={<SuppliersPage />} />
+              <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
+              <Route path="/webhooks" element={<WebhookConfigsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

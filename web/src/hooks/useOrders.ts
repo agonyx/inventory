@@ -15,6 +15,8 @@ export interface Order {
   shippingAddress: string | null;
   totalAmount: number;
   source: string | null;
+  trackingNumber: string | null;
+  shippingCarrier: string | null;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;
@@ -52,5 +54,31 @@ export function useUpdateOrderStatus() {
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['pick-list'] });
     },
+  });
+}
+
+export function useUpdateShipping() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, trackingNumber, shippingCarrier }: { id: string; trackingNumber: string; shippingCarrier: string }) =>
+      apiFetch<Order>(`/orders/${id}/shipping`, { method: 'PATCH', body: JSON.stringify({ trackingNumber, shippingCarrier }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+}
+
+export interface TrackingUrlResponse {
+  trackingUrl: string;
+  trackingNumber: string;
+  shippingCarrier: string;
+}
+
+export function useOrderTrackingUrl(id: string | undefined) {
+  return useQuery({
+    queryKey: ['orders', id, 'tracking-url'],
+    queryFn: () => apiFetch<TrackingUrlResponse>(`/orders/${id}/tracking-url`),
+    enabled: !!id,
+    retry: false,
   });
 }

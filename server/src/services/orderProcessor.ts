@@ -5,6 +5,7 @@ import { InventoryLevel } from '../entities/InventoryLevel';
 import { ProductVariant } from '../entities/ProductVariant';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
 import { AppError, ErrorCode } from '../errors/app-error';
+import { sendOrderConfirmation } from './email';
 
 export interface WebhookPayload {
   externalOrderId: string;
@@ -103,6 +104,11 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
 
     await manager.save(orderItems);
     order.items = orderItems;
+
+    sendOrderConfirmation(order).catch((err) => {
+      console.error('[orderProcessor] Failed to send order confirmation email:', err);
+    });
+
     return order;
   });
 }

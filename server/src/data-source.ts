@@ -14,6 +14,13 @@ import { Transfer } from './entities/Transfer';
 import { TransferItem } from './entities/TransferItem';
 import { Stocktake } from './entities/Stocktake';
 import { StocktakeItem } from './entities/StocktakeItem';
+import { Notification } from './entities/Notification';
+import { WebhookConfig } from './entities/WebhookConfig';
+import { Supplier } from './entities/Supplier';
+import { Return } from './entities/Return';
+import { ReturnItem } from './entities/ReturnItem';
+import { PurchaseOrder } from './entities/PurchaseOrder';
+import { PurchaseOrderItem } from './entities/PurchaseOrderItem';
 
 dotenv.config();
 
@@ -22,7 +29,7 @@ export const AppDataSource = new DataSource({
   url: process.env.DATABASE_URL,
   synchronize: process.env.NODE_ENV !== 'production',
   logging: false,
-  entities: [Product, ProductVariant, Location, InventoryLevel, Order, OrderItem, StockAdjustment, AuditLog, User, Transfer, TransferItem, Stocktake, StocktakeItem],
+  entities: [Product, ProductVariant, Location, InventoryLevel, Order, OrderItem, StockAdjustment, AuditLog, User, Transfer, TransferItem, Stocktake, StocktakeItem, Notification, WebhookConfig, Supplier, Return, ReturnItem, PurchaseOrder, PurchaseOrderItem],
   migrations: [__dirname + '/migrations/**/*.ts'],
 });
 if (import.meta.main) {

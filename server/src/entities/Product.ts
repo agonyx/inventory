@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 
 @Entity('products')
 export class Product {
@@ -22,6 +22,16 @@ export class Product {
 
   @Column({ type: 'int', default: 0 })
   lowStockThreshold: number;
+
+  @Column({ type: 'uuid', nullable: true })
+  supplierId: string | null;
+
+  @ManyToOne('Supplier', 'products')
+  @JoinColumn({ name: 'supplierId' })
+  supplier: import('./Supplier').Supplier | null;
+
+  @Column({ type: 'simple-array', default: '' })
+  images: string[];
 
   @OneToMany('ProductVariant', 'product', { cascade: true })
   variants: import('./ProductVariant').ProductVariant[];

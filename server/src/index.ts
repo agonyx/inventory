@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { AppDataSource } from './data-source';
 const app = new Hono();
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:5174'];
@@ -9,6 +10,8 @@ app.use(cors({ origin: allowedOrigins }));
 import webhookRoute from './routes/webhooks';
 import { errorHandler } from './middleware/error-handler';
 import { jwtAuth } from './middleware/jwt-auth';
+import { requireRole, requireAdmin } from './middleware/rbac';
+import { UserRole } from './entities/User';
 import productsRoute from './routes/products';
 import inventoryRoute from './routes/inventory';
 import locationsRoute from './routes/locations';
@@ -20,10 +23,19 @@ import auditLogsRoute from './routes/auditLogs';
 import transfersRoute from './routes/transfers';
 import stocktakesRoute from './routes/stocktakes';
 import bulkRoute from './routes/bulk';
+import reportsRoute from './routes/reports';
+import notificationsRoute from './routes/notifications';
+import webhookConfigsRoute from './routes/webhookConfigs';
+import usersRoute from './routes/users';
+import suppliersRoute from './routes/suppliers';
+import returnsRoute from './routes/returns';
+import purchaseOrdersRoute from './routes/purchaseOrders';
 
 // Public routes
 app.route('/webhooks', webhookRoute);
 app.get('/health', (c) => c.json({ status: 'ok' }));
+
+app.use('/uploads/*', serveStatic({ root: './' }));
 
 // Auth routes (no JWT required — not under /api/*)
 app.route('/auth', authRoute);
@@ -31,16 +43,57 @@ app.route('/auth', authRoute);
 // Auth middleware for /api/* routes only
 app.use('/api/*', jwtAuth);
 
+// RBAC-applied routes
+app.use('/api/users/*', requireAdmin);
+app.route('/api/users', usersRoute);
+
+app.use('/api/webhooks/config/*', requireRole(UserRole.ADMIN));
+app.route('/api/webhooks/config', webhookConfigsRoute);
+
+app.use('/api/products/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
 app.route('/api/products', productsRoute);
-app.route('/api/inventory', inventoryRoute);
-app.route('/api/locations', locationsRoute);
+
+app.use('/api/suppliers/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.route('/api/suppliers', suppliersRoute);
+
+app.use('/api/purchase-orders/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.route('/api/purchase-orders', purchaseOrdersRoute);
+
+app.use('/api/orders/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
 app.route('/api/orders', ordersRoute);
-app.route('/api/pick-list', pickListRoute);
-app.route('/api/alerts', alertsRoute);
+
+app.use('/api/reports/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.route('/api/reports', reportsRoute);
+
+app.use('/api/audit-logs/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
 app.route('/api/audit-logs', auditLogsRoute);
-app.route('/api/transfers', transfersRoute);
-app.route('/api/stocktakes', stocktakesRoute);
+
+app.use('/api/bulk/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
 app.route('/api/bulk', bulkRoute);
+
+app.use('/api/pick-list/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.route('/api/pick-list', pickListRoute);
+
+app.use('/api/inventory/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.route('/api/inventory', inventoryRoute);
+
+app.use('/api/transfers/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.route('/api/transfers', transfersRoute);
+
+app.use('/api/stocktakes/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.route('/api/stocktakes', stocktakesRoute);
+
+app.use('/api/locations/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.route('/api/locations', locationsRoute);
+
+app.use('/api/notifications/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.route('/api/notifications', notificationsRoute);
+
+app.use('/api/alerts/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.route('/api/alerts', alertsRoute);
+
+app.use('/api/returns/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.route('/api/returns', returnsRoute);
 
 app.onError(errorHandler);
 const port = parseInt(process.env.PORT || '3002');

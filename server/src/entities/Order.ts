@@ -34,6 +34,12 @@ export class Order {
   @Column({ type: 'varchar', length: 50, nullable: true })
   source: string | null;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  trackingNumber: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  shippingCarrier: string | null;
+
   @OneToMany('OrderItem', 'order', { cascade: true })
   items: import('./OrderItem').OrderItem[];
 

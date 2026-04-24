@@ -2,6 +2,9 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { In, Like, Not, IsNull } from 'typeorm';
+import { writeFile, unlink, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { AppDataSource } from '../data-source';
 import { Product } from '../entities/Product';
 import { ProductVariant } from '../entities/ProductVariant';
@@ -20,6 +23,14 @@ const locationRepo = () => AppDataSource.getRepository(Location);
 
 const ALLOWED_SORT_COLUMNS = ['name', 'sku', 'category', 'price', 'createdAt'];
 
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+if (!existsSync(UPLOADS_DIR)) {
+  mkdir(UPLOADS_DIR, { recursive: true }).catch(() => {});
+}
+
 const createSchema = z.object({
   name: z.string().min(1),
   sku: z.string().min(1),
@@ -27,6 +38,7 @@ const createSchema = z.object({
   category: z.string().optional(),
   price: z.number().nonnegative().default(0),
   lowStockThreshold: z.number().int().nonnegative().default(0),
+  supplierId: z.string().uuid().optional().nullable(),
   variants: z.array(z.object({
     name: z.string().min(1),
     sku: z.string().min(1),
@@ -415,6 +427,77 @@ app.delete('/:productId/variants/:variantId', async (c) => {
   await inventoryRepo().delete({ variantId });
   // Delete the variant
   await variantRepo().delete(variantId);
+
+  return c.json({ success: true });
+});
+
+// GET /api/products/:id/images
+app.get('/:id/images', async (c) => {
+  const id = c.req.param('id');
+  const product = await productRepo().findOne({ where: { id } });
+  if (!product) throw new AppError(404, ErrorCode.NOT_FOUND, 'Product not found');
+  return c.json({ images: product.images || [] });
+});
+
+// POST /api/products/:id/images
+app.post('/:id/images', async (c) => {
+  const id = c.req.param('id');
+  const product = await productRepo().findOne({ where: { id } });
+  if (!product) throw new AppError(404, ErrorCode.NOT_FOUND, 'Product not found');
+
+  const body = await c.req.parseBody();
+  const file = body['file'];
+
+  if (!file || !(file instanceof File)) {
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'No file uploaded');
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'File size exceeds 5MB limit');
+  }
+
+  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Only image files (jpg, png, webp, gif) are allowed');
+  }
+
+  const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
+  const filename = `product-${id}-${Date.now()}.${ext}`;
+  const filepath = path.join(UPLOADS_DIR, filename);
+
+  const arrayBuffer = await file.arrayBuffer();
+  await writeFile(filepath, Buffer.from(arrayBuffer));
+
+  const imagePath = `/uploads/${filename}`;
+  product.images = [...(product.images || []), imagePath];
+  await productRepo().save(product);
+
+  return c.json({ success: true, image: imagePath }, 201);
+});
+
+// DELETE /api/products/:id/images/:index
+app.delete('/:id/images/:index', async (c) => {
+  const id = c.req.param('id');
+  const index = parseInt(c.req.param('index'), 10);
+
+  const product = await productRepo().findOne({ where: { id } });
+  if (!product) throw new AppError(404, ErrorCode.NOT_FOUND, 'Product not found');
+
+  const images = product.images || [];
+  if (isNaN(index) || index < 0 || index >= images.length) {
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Invalid image index');
+  }
+
+  const imagePath = images[index];
+  const filename = path.basename(imagePath);
+  const filepath = path.join(UPLOADS_DIR, filename);
+
+  try {
+    await unlink(filepath);
+  } catch {}
+
+  images.splice(index, 1);
+  product.images = images;
+  await productRepo().save(product);
 
   return c.json({ success: true });
 });

@@ -92,6 +92,24 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   return res.json();
 }
 
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const token = getAccessToken();
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(body || `Upload failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export function logout() {
   clearTokens();
   window.location.href = '/login';

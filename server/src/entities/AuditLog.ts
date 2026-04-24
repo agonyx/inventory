@@ -10,6 +10,15 @@ export enum AuditAction {
   TRANSFER_COMPLETED = 'transfer_completed',
   TRANSFER_CANCELLED = 'transfer_cancelled',
   STOCKTAKE_COMPLETED = 'stocktake_completed',
+  CREATE_RETURN = 'create_return',
+  APPROVE_RETURN = 'approve_return',
+  REJECT_RETURN = 'reject_return',
+  RECEIVE_RETURN = 'receive_return',
+  REFUND_RETURN = 'refund_return',
+  CREATE_PURCHASE_ORDER = 'create_purchase_order',
+  UPDATE_PURCHASE_ORDER = 'update_purchase_order',
+  RECEIVE_PURCHASE_ORDER = 'receive_purchase_order',
+  CANCEL_PURCHASE_ORDER = 'cancel_purchase_order',
 }
 
 @Entity('audit_logs')

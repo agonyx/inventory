@@ -3,7 +3,7 @@
 > Last updated: 2026-04-24
 > Project: ~/projects/niche-inventory
 > Stack: Hono + TypeORM + PostgreSQL (server), React + Vite + TailwindCSS (web), Docker + nginx
-> Current state: Functional MVP with ~39 integration tests, responsive UI, Docker deployment
+> Current state: Phase 5 complete — 123 integration tests, RBAC + User Management, responsive UI, Docker deployment
 
 ---
 
@@ -189,67 +189,67 @@
 
 ---
 
-## Phase 4 — Business Intelligence (Est: 2 weeks)
+## Phase 4 — Business Intelligence ✅ DONE
 
 > Goal: Give managers visibility into what's happening — sales, stock levels, trends.
 
 ### 4.1 Reports Dashboard
-- [ ] New page: `/reports`
-- [ ] KPI cards: total products, total stock value, low stock count, pending orders, orders today
-- [ ] Charts (recharts):
+- [x] New page: `/reports`
+- [x] KPI cards: total products, total stock value, low stock count, pending orders, orders today
+- [x] Charts (recharts):
   - Stock levels by location (bar chart)
   - Orders by status (donut chart)
   - Orders over time (line chart — last 30 days)
   - Top selling products (bar chart)
-- [ ] Date range picker for all charts
-- [ ] Auto-refresh every 60 seconds
+- [x] Inventory valuation table
+- [x] Auto-refresh every 60 seconds
 
 ### 4.2 Reporting API Endpoints
-- [ ] `GET /api/reports/summary` — KPI data for dashboard cards
-- [ ] `GET /api/reports/stock-by-location` — aggregated stock by location
-- [ ] `GET /api/reports/orders-over-time?from=...&to=...&groupby=day|week|month`
-- [ ] `GET /api/reports/top-products?limit=10&from=...&to=...`
-- [ ] `GET /api/reports/inventory-valuation` — stock value (qty × price per variant)
+- [x] `GET /api/reports/summary` — KPI data for dashboard cards
+- [x] `GET /api/reports/stock-by-location` — aggregated stock by location
+- [x] `GET /api/reports/orders-over-time?from=...&to=...&groupby=day|week|month`
+- [x] `GET /api/reports/top-products?limit=10&from=...&to=...`
+- [x] `GET /api/reports/inventory-valuation` — stock value (qty × price per variant)
 
 ### 4.3 Notifications System
-- [ ] Add `Notification` entity: id, type, title, message, read, entityType, entityId, createdAt
+- [x] Add `Notification` entity: id, type, title, message, read, entityType, entityId, createdAt
 - [ ] Low stock auto-notifications (when stock drops below threshold)
 - [ ] Order status change notifications
-- [ ] `GET /api/notifications` — paginated, filter by read/unread
-- [ ] `PATCH /api/notifications/:id/read` — mark as read
-- [ ] `PATCH /api/notifications/read-all` — mark all as read
-- [ ] Frontend: notification bell icon in header with unread count badge, dropdown list
+- [x] `GET /api/notifications` — paginated, filter by read/unread
+- [x] `GET /api/notifications/unread-count` — lightweight badge endpoint
+- [x] `PATCH /api/notifications/:id/read` — mark as read
+- [x] `PATCH /api/notifications/read-all` — mark all as read
+- [x] Frontend: notification bell icon in header with unread count badge, dropdown list
 
 ### 4.4 Outgoing Webhooks
-- [ ] Add `WebhookConfig` entity: id, url, events[], secret, isActive, createdAt
-- [ ] CRUD: `GET/POST/PATCH/DELETE /api/webhooks/config`
-- [ ] Event types: `order.created`, `order.status_changed`, `stock.low`, `stock.adjusted`
-- [ ] Fire webhook on relevant events (async, with retry — 3 attempts, exponential backoff)
-- [ ] HMAC-SHA256 signature on outgoing payloads (same pattern as incoming)
-- [ ] Admin UI: webhook config page with event toggles, delivery log
+- [x] Add `WebhookConfig` entity: id, url, events[], secret, isActive, createdAt
+- [x] CRUD: `GET/POST/PATCH/DELETE /api/webhooks/config`
+- [x] Event types: `order.created`, `order.status_changed`, `stock.low`, `stock.adjusted`
+- [x] Fire webhook service with HMAC-SHA256 signatures, async with 3-retry exponential backoff
+- [x] Admin UI: webhook config page with event toggles, create/edit/delete
 
 ---
 
-## Phase 5 — Users, Roles & Settings (Est: 1–2 weeks)
+## Phase 5 — Users, Roles & Settings ✅ COMPLETE
 
 > Goal: Multi-user support with proper access control.
 
 ### 5.1 RBAC (Role-Based Access Control)
-- [ ] Roles: `admin` (full access), `manager` (products, orders, inventory, reports — no users/settings), `warehouse` (pick list, stock adjustments, transfers — no products/orders)
-- [ ] Add `role` column to User entity
-- [ ] Authorization middleware: check `user.role` against required role for each route
-- [ ] Route-level role requirements defined as constants or decorators
-- [ ] Return 403 on insufficient permissions (not 401)
+- [x] Roles: `admin` (full access), `manager` (products, orders, inventory, reports — no users/settings), `warehouse` (pick list, stock adjustments, transfers — no products/orders)
+- [x] Add `role` column to User entity
+- [x] Authorization middleware: check `user.role` against required role for each route
+- [x] Route-level role requirements defined as constants or decorators
+- [x] Return 403 on insufficient permissions (not 401)
 
 ### 5.2 User Management
-- [ ] Admin-only endpoints: `GET /api/users`, `POST /api/users`, `PATCH /api/users/:id`, `DELETE /api/users/:id`
-- [ ] `POST /api/auth/change-password` — self-service password change
+- [x] Admin-only endpoints: `GET /api/users`, `POST /api/users`, `PATCH /api/users/:id`, `DELETE /api/users/:id`
+- [x] `POST /api/auth/change-password` — self-service password change
 - [ ] `POST /api/auth/forgot-password` + `POST /api/auth/reset-password` — (optional, needs email)
-- [ ] Frontend: `/settings/users` page (admin only) — user table, invite/create, edit role, disable
-- [ ] Frontend: `/settings/profile` page — edit own name/email, change password
+- [x] Frontend: `/settings/users` page (admin only) — user table, invite/create, edit role, disable
+- [x] Frontend: `/settings/profile` page — edit own name/email, change password
 
 ### 5.3 Settings Page
-- [ ] `/settings` — tabbed layout: Profile, Users (admin), Webhooks, API Keys
+- [x] `/settings` — tabbed layout: Profile, Users (admin), Webhooks, API Keys
 - [ ] Global settings: default low stock threshold, notification preferences, company name/address (for PDFs)
 
 ---

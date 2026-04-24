@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../api/client';
+import { apiFetch, apiUpload } from '../api/client';
 
 export interface Product {
   id: string;
@@ -9,6 +9,8 @@ export interface Product {
   category: string | null;
   price: number;
   lowStockThreshold: number;
+  supplierId: string | null;
+  images: string[];
   variants: ProductVariant[];
   createdAt: string;
   updatedAt: string;
@@ -119,6 +121,27 @@ export function useDeleteVariant(productId: string, variantId: string) {
       apiFetch(`/products/${productId}/variants/${variantId}`, {
         method: 'DELETE',
       }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+}
+
+export function useUploadProductImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, file }: { productId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return apiUpload<{ success: boolean; image: string }>(`/products/${productId}/images`, formData);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+}
+
+export function useDeleteProductImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, index }: { productId: string; index: number }) =>
+      apiFetch(`/products/${productId}/images/${index}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
   });
 }

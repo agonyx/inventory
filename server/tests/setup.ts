@@ -23,6 +23,11 @@ import { Transfer } from '../src/entities/Transfer';
 import { TransferItem } from '../src/entities/TransferItem';
 import { Stocktake } from '../src/entities/Stocktake';
 import { StocktakeItem } from '../src/entities/StocktakeItem';
+import { Supplier } from '../src/entities/Supplier';
+import { Return } from '../src/entities/Return';
+import { ReturnItem } from '../src/entities/ReturnItem';
+import { PurchaseOrder } from '../src/entities/PurchaseOrder';
+import { PurchaseOrderItem } from '../src/entities/PurchaseOrderItem';
 import { generateTokens } from '../src/services/auth';
 
 export const AUTH_TOKEN = process.env.AUTH_TOKEN || 'niche-inventory-secret-2026';
@@ -65,8 +70,9 @@ export async function cleanTables() {
   if (!AppDataSource.isInitialized) return;
   await AppDataSource.query(`
     TRUNCATE TABLE audit_logs, stock_adjustments, order_items, orders,
+             purchase_order_items, purchase_orders,
              transfer_items, transfers, stocktake_items, stocktakes,
-             inventory_levels, product_variants, products, locations, users
+             inventory_levels, product_variants, products, suppliers, locations, users
     RESTART IDENTITY CASCADE
   `);
   // Reset cached test user after truncate
@@ -79,6 +85,11 @@ export const seed = {
   async location(overrides: Partial<Location> = {}) {
     const repo = AppDataSource.getRepository(Location);
     return repo.save(repo.create({ name: 'Test Warehouse', type: 'warehouse', ...overrides }));
+  },
+
+  async supplier(overrides: Partial<Supplier> = {}) {
+    const repo = AppDataSource.getRepository(Supplier);
+    return repo.save(repo.create({ name: 'Test Supplier', ...overrides }));
   },
 
   async product(overrides: Partial<Product> = {}, variants: Partial<ProductVariant>[] = []) {
@@ -140,6 +151,45 @@ export const seed = {
       }
     }
     return order;
+  },
+
+  async returnOrder(overrides: Partial<Return> & { items?: Partial<ReturnItem>[] } = {}) {
+    const { items, orderId: overrideOrderId, ...returnOverrides } = overrides;
+    const repo = AppDataSource.getRepository(Return);
+    const itemRepo = AppDataSource.getRepository(ReturnItem);
+    const orderId = overrideOrderId || (await seed.order()).id;
+    const ret = await repo.save(repo.create({
+      orderId,
+      reason: 'Defective product',
+      status: 'requested' as any,
+      ...returnOverrides,
+    }));
+
+    if (items) {
+      for (const i of items) {
+        await itemRepo.save(itemRepo.create({ returnId: ret.id, ...i }));
+      }
+    }
+    return ret;
+  },
+
+  async purchaseOrder(overrides: Partial<PurchaseOrder> & { items?: Partial<PurchaseOrderItem>[] } = {}) {
+    const { items, ...poOverrides } = overrides;
+    const repo = AppDataSource.getRepository(PurchaseOrder);
+    const itemRepo = AppDataSource.getRepository(PurchaseOrderItem);
+    const supplierId = (poOverrides as any).supplierId || (await seed.supplier()).id;
+    const po = await repo.save(repo.create({
+      supplierId,
+      status: 'draft' as any,
+      ...poOverrides,
+    }));
+
+    if (items) {
+      for (const i of items) {
+        await itemRepo.save(itemRepo.create({ purchaseOrderId: po.id, ...i }));
+      }
+    }
+    return po;
   },
 };
 

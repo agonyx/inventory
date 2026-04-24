@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Upload, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '../api/client';
 import type { Product, ProductVariant } from '../hooks/useProducts';
 import {
   useCreateProduct,
   useUpdateProduct,
+  useUploadProductImage,
+  useDeleteProductImage,
 } from '../hooks/useProducts';
+import { useSuppliers } from '../hooks/useSuppliers';
 
 interface VariantRow {
   id?: string; // existing variant id for edit mode
@@ -24,6 +27,114 @@ interface ProductFormProps {
   onSuccess?: (isEdit: boolean) => void;
 }
 
+interface ImageDropzoneProps {
+  productId: string;
+  images: string[];
+  onUpload: ReturnType<typeof useUploadProductImage>;
+  onDelete: ReturnType<typeof useDeleteProductImage>;
+}
+
+function ImageDropzone({ productId, images, onUpload, onDelete }: ImageDropzoneProps) {
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = useCallback(async (files: FileList | File[]) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    for (const file of Array.from(files)) {
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`${file.name} is not an image file`);
+        continue;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} exceeds 5MB limit`);
+        continue;
+      }
+      try {
+        await onUpload.mutateAsync({ productId, file });
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to upload image');
+      }
+    }
+  }, [productId, onUpload]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
+    }
+  }, [handleFiles]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(false);
+  }, []);
+
+  const handleDelete = useCallback(async (index: number) => {
+    try {
+      await onDelete.mutateAsync({ productId, index });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete image');
+    }
+  }, [productId, onDelete]);
+
+  return (
+    <div className="space-y-3">
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={() => fileInputRef.current?.click()}
+        className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 cursor-pointer transition-colors ${
+          dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+        }`}
+      >
+        <Upload size={24} className="text-gray-400 mb-2" />
+        <p className="text-sm text-gray-500 text-center">
+          Drop images here or <span className="text-blue-600 font-medium">click to browse</span>
+        </p>
+        <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP, GIF — max 5MB</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) handleFiles(e.target.files);
+            e.target.value = '';
+          }}
+        />
+      </div>
+
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {images.map((src, idx) => (
+            <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+              <img
+                src={src}
+                alt={`Product image ${idx + 1}`}
+                className="w-full h-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleDelete(idx); }}
+                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProductForm({ product, onClose, onSuccess }: ProductFormProps) {
   const isEdit = !!product;
 
@@ -36,6 +147,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
   const [variants, setVariants] = useState<VariantRow[]>([
     { name: '', sku: '', barcode: '', description: '' },
   ]);
+  const [supplierId, setSupplierId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   // Per-field validation state
@@ -43,7 +155,11 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
 
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const uploadImage = useUploadProductImage();
+  const deleteImage = useDeleteProductImage();
   const qc = useQueryClient();
+  const { data: suppliersData } = useSuppliers();
+  const suppliers = suppliersData?.data ?? [];
 
   useEffect(() => {
     if (product) {
@@ -53,6 +169,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
       setDescription(product.description || '');
       setPrice(product.price.toString());
       setLowStockThreshold(product.lowStockThreshold.toString());
+      setSupplierId(product.supplierId || '');
       if (product.variants.length) {
         setVariants(
           product.variants.map((v) => ({
@@ -144,6 +261,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
       description: description.trim() || null,
       price: priceNum,
       lowStockThreshold: thresholdNum,
+      supplierId: supplierId || null,
       variants: variants
         .filter((v) => v.name.trim() && v.sku.trim())
         .map((v) => ({
@@ -274,9 +392,25 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Price ($) <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+              <select
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                <option value="">No supplier</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Price ($) <span className="text-red-500">*</span>
+            </label>
+            <div className="w-full sm:w-48">
               <input
                 type="number"
                 step="0.01"
@@ -394,6 +528,21 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
               </div>
             )}
           </div>
+
+          {/* Images Section */}
+          {isEdit && product && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Images
+              </label>
+              <ImageDropzone
+                productId={product.id}
+                images={product.images || []}
+                onUpload={uploadImage}
+                onDelete={deleteImage}
+              />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">

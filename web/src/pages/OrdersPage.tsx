@@ -6,11 +6,14 @@ import {
   AlertTriangle,
   Download,
   X,
+  ExternalLink,
+  Truck,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiFetch, openAuthenticatedUrl } from '../api/client';
-import { useOrders, useUpdateOrderStatus, type Order } from '../hooks/useOrders';
+import { useOrders, useUpdateOrderStatus, useUpdateShipping, useOrderTrackingUrl, type Order } from '../hooks/useOrders';
+import { useAuth } from '../hooks/useAuth';
 import { useBulkUpdateOrderStatus } from '../hooks/useBulkOperations';
 import useUrlFilters from '../hooks/useUrlFilters';
 import FilterBar from '../components/FilterBar';
@@ -35,12 +38,120 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+const CARRIER_OPTIONS = [
+  { value: 'dhl', label: 'DHL' },
+  { value: 'ups', label: 'UPS' },
+  { value: 'fedex', label: 'FedEx' },
+  { value: 'usps', label: 'USPS' },
+  { value: 'royal_mail', label: 'Royal Mail' },
+];
+
+const CARRIER_URLS: Record<string, (tracking: string) => string> = {
+  dhl: (t) => `https://www.dhl.com/track?id=${encodeURIComponent(t)}`,
+  ups: (t) => `https://www.ups.com/track?tracknum=${encodeURIComponent(t)}`,
+  fedex: (t) => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(t)}`,
+  usps: (t) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(t)}`,
+  royal_mail: (t) => `https://www.royalmail.com/track-your-item/?trackNumber=${encodeURIComponent(t)}`,
+};
+
 function StatusBadge({ status }: { status: string }) {
   const color = STATUS_COLORS[status] || 'bg-gray-100 text-gray-700';
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${color}`}>
       {status}
     </span>
+  );
+}
+
+function ShippingSection({ order }: { order: Order }) {
+  const { data: user } = useAuth();
+  const updateShipping = useUpdateShipping();
+  const [trackingInput, setTrackingInput] = useState(order.trackingNumber || '');
+  const [carrierInput, setCarrierInput] = useState(order.shippingCarrier || 'ups');
+
+  const canEdit = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'warehouse';
+
+  const handleSave = () => {
+    updateShipping.mutate(
+      { id: order.id, trackingNumber: trackingInput, shippingCarrier: carrierInput },
+      {
+        onSuccess: () => {
+          toast.success('Shipping info updated');
+        },
+        onError: (err: any) => {
+          toast.error(err.message || 'Failed to update shipping info');
+        },
+      },
+    );
+  };
+
+  const trackingUrl =
+    order.trackingNumber && order.shippingCarrier && CARRIER_URLS[order.shippingCarrier]
+      ? CARRIER_URLS[order.shippingCarrier](order.trackingNumber)
+      : null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-200">
+      <span className="text-xs font-medium text-gray-400 uppercase flex items-center gap-1">
+        <Truck size={12} />
+        Shipping
+      </span>
+
+      {order.trackingNumber && (
+        <div className="mt-1.5">
+          <p className="text-sm text-gray-600">
+            {(CARRIER_OPTIONS.find((c) => c.value === order.shippingCarrier)?.label || order.shippingCarrier?.toUpperCase())}: {order.trackingNumber}
+          </p>
+          {trackingUrl && (
+            <a
+              href={trackingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mt-1"
+            >
+              <ExternalLink size={14} />
+              Track Package
+            </a>
+          )}
+        </div>
+      )}
+
+      {canEdit && (
+        <div className="mt-2 flex flex-wrap items-end gap-2">
+          <div>
+            <label className="text-xs text-gray-500">Tracking Number</label>
+            <input
+              type="text"
+              value={trackingInput}
+              onChange={(e) => setTrackingInput(e.target.value)}
+              className="block w-48 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter tracking number"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Carrier</label>
+            <select
+              value={carrierInput}
+              onChange={(e) => setCarrierInput(e.target.value)}
+              className="block text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {CARRIER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={updateShipping.isPending || !trackingInput.trim()}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+          >
+            {updateShipping.isPending ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -403,6 +514,7 @@ export default function OrdersPage() {
                                 </p>
                               </div>
                             )}
+                            {isExpanded && <ShippingSection order={order} />}
                           </div>
                         )}
                       </div>
@@ -717,6 +829,7 @@ function OrderRow({
                   </p>
                 </div>
               )}
+              <ShippingSection order={order} />
             </div>
           </td>
         </tr>
