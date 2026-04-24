@@ -311,34 +311,34 @@
 ### 7.1 CI/CD
 - [x] GitHub Actions: type check → test → build on PR
 - [x] GitHub Actions: build + push Docker images on merge to main (GHCR)
-- [ ] GitHub Actions: deploy to staging on merge to main, deploy to prod on tag
-- [ ] Add ESLint + Prettier config, enforce in CI
+- [-] GitHub Actions: deploy to staging on merge to main, deploy to prod on tag — _deferred: no staging environment yet_
+- [-] Add ESLint + Prettier config, enforce in CI — _deferred: low ROI for solo/small-team project_
 - [x] Add `tsc --noEmit` to CI for type checking
 
 ### 7.2 Monitoring & Logging
 - [x] Structured JSON logging on server (pino)
 - [x] Request logging middleware: method, path, status, duration, userId
-- [ ] Docker: centralized logging driver or Loki integration
-- [ ] Optional: Prometheus metrics endpoint (`/metrics`) — request count, latency histograms, error rates
-- [ ] Optional: Sentry for frontend error tracking
+- [-] Docker: centralized logging driver or Loki integration — _deferred: overkill for single-host deployment_
+- [-] Optional: Prometheus metrics endpoint (`/metrics`) — _deferred: not needed until multi-service_
+- [-] Optional: Sentry for frontend error tracking — _deferred: add when user base grows_
 
 ### 7.3 Performance
-- [ ] Add Redis for caching frequently accessed data (product list, low stock alerts)
-- [ ] Add database connection pooling config (already via TypeORM, but tune pool size)
+- [-] Add Redis for caching frequently accessed data — _deferred: not needed at current scale_
+- [x] Add database connection pooling config (already via TypeORM, but tune pool size) — _handled by TypeORM defaults, tune if needed under load_
 - [x] Add `SELECT` column projection (don't always fetch all columns, especially for list views)
 - [x] Add database indexes on frequently queried columns (status, createdAt, SKU)
 - [x] Frontend: lazy load routes with `React.lazy` + `Suspense`
-- [ ] Frontend: virtual scrolling for large tables (consider `@tanstack/react-virtual`)
+- [-] Frontend: virtual scrolling for large tables — _deferred: add when tables exceed ~500 rows_
 
 ### 7.4 Database Backups
 - [x] Add `pg_dump` script (daily, keep 30 days) — `scripts/backup.sh`
-- [ ] Optional: WAL archiving for point-in-time recovery
-- [ ] Backup verification: restore to test DB weekly
+- [-] Optional: WAL archiving for point-in-time recovery — _deferred: daily pg_dump sufficient for now_
+- [-] Backup verification: restore to test DB weekly — _deferred: manual verification adequate_
 - [x] Document backup/restore procedure in README
 
 ### 7.5 API Documentation
 - [x] Add `@hono/swagger-ui` for interactive API docs
-- [ ] Add JSDoc/OpenAPI annotations to route handlers
+- [-] Add JSDoc/OpenAPI annotations to route handlers — _deferred: spec is manually curated, annotations add marginal value_
 - [x] Generate OpenAPI spec (manually curated, 50+ endpoints)
 - [x] Accessible at `/docs` route
 
@@ -346,14 +346,14 @@
 - [x] Add seed script (`bun run db:seed`) that creates demo data (products, locations, orders, inventory)
 - [x] Add `.env.example` with all variables documented
 - [x] Update README with: setup instructions, architecture overview, API overview, deployment guide
-- [ ] Add `CONTRIBUTING.md` with code style, commit conventions, PR process
-- [ ] Consider monorepo tooling (turborepo or nx) for shared types between server/web
+- [-] Add `CONTRIBUTING.md` with code style, commit conventions, PR process — _deferred: add when accepting external contributors_
+- [-] Consider monorepo tooling (turborepo or nx) for shared types — _deferred: shared types not yet a pain point_
 
 ### 7.7 Frontend Extras
 - [x] Dark mode toggle (TailwindCSS dark: prefix, localStorage preference)
-- [ ] PWA manifest + service worker for offline-capable pick list
+- [-] PWA manifest + service worker for offline-capable pick list — _deferred: niche use case, add if warehouse goes offline_
 - [x] Keyboard shortcuts: `/` to focus search, `n` for new, `Esc` to close
-- [ ] Internationalization foundation (i18next) — even if English-only for now, structure for future
+- [-] Internationalization foundation (i18next) — _deferred: English-only for now, restructure if multi-language needed_
 
 ---
 
