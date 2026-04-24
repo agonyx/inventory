@@ -40,7 +40,7 @@ async function refreshAccessToken(): Promise<string> {
   const refresh = getRefreshToken();
   if (!refresh) throw new Error('No refresh token');
 
-  refreshPromise = fetch(`${API_BASE}/auth/refresh`, {
+  refreshPromise = fetch('/auth/refresh', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken: refresh }),
