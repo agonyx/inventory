@@ -7,21 +7,25 @@ import {
   ChevronRight,
   AlertTriangle,
   ArrowUpDown,
-  Loader2,
 } from 'lucide-react';
 import type {
   Product,
   ProductVariant,
   InventoryLevel,
 } from '../hooks/useProducts';
+import SortableHeader from './SortableHeader';
+import SkeletonTable from './SkeletonTable';
 
 interface ProductTableProps {
   products: Product[];
   isLoading: boolean;
   onAdd: () => void;
   onEdit: (product: Product) => void;
-  onDelete: (id: string) => void;
+  onDelete: (product: Product) => void;
   onAdjustStock: (level: InventoryLevel, variant: ProductVariant, product: Product) => void;
+  sortBy?: string;
+  sortDir?: 'ASC' | 'DESC';
+  onSort: (column: string) => void;
 }
 
 function totalStock(product: Product): number {
@@ -54,6 +58,9 @@ export default function ProductTable({
   onEdit,
   onDelete,
   onAdjustStock,
+  sortBy,
+  sortDir,
+  onSort,
 }: ProductTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -62,12 +69,7 @@ export default function ProductTable({
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-blue-500" size={28} />
-        <span className="ml-2 text-gray-500">Loading products...</span>
-      </div>
-    );
+    return <SkeletonTable rows={5} columns={7} />;
   }
 
   if (!products.length) {
@@ -163,13 +165,7 @@ export default function ProductTable({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (
-                      window.confirm(
-                        `Delete "${product.name}"? This cannot be undone.`,
-                      )
-                    ) {
-                      onDelete(product.id);
-                    }
+                    onDelete(product);
                   }}
                   className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
                   title="Delete"
@@ -256,9 +252,9 @@ export default function ProductTable({
           <thead>
             <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <th className="w-8 px-4 py-3" />
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">SKU</th>
-              <th className="px-4 py-3">Category</th>
+              <SortableHeader label="Name" column="name" currentSortBy={sortBy} currentSortDir={sortDir} onSort={onSort} />
+              <SortableHeader label="SKU" column="sku" currentSortBy={sortBy} currentSortDir={sortDir} onSort={onSort} />
+              <SortableHeader label="Category" column="category" currentSortBy={sortBy} currentSortDir={sortDir} onSort={onSort} />
               <th className="px-4 py-3 text-right">Price</th>
               <th className="px-4 py-3 text-right">Stock</th>
               <th className="px-4 py-3 text-center">Variants</th>
@@ -336,13 +332,7 @@ export default function ProductTable({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (
-                              window.confirm(
-                                `Delete "${product.name}"? This cannot be undone.`,
-                              )
-                            ) {
-                              onDelete(product.id);
-                            }
+                            onDelete(product);
                           }}
                           className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
                           title="Delete"
@@ -378,7 +368,7 @@ export default function ProductTable({
                                   <th className="pb-2 pr-4 text-right">
                                     Available
                                   </th>
-                                  <th className="pb-2 text-right">
+                                  <th className="pb-2 pr-4 text-right">
                                     Status
                                   </th>
                                   <th className="pb-2 pl-4 text-right" />
@@ -432,7 +422,7 @@ export default function ProductTable({
                                           >
                                             {available}
                                           </td>
-                                          <td className="py-2 text-right">
+                                          <td className="py-2 pr-4 text-right">
                                             {isLow ? (
                                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
                                                 <AlertTriangle size={10} /> Low

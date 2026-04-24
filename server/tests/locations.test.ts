@@ -14,7 +14,7 @@ describe('Locations API', () => {
   test('GET / returns empty array when no locations', async () => {
     const res = await app.request('/', { headers: authHeader });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect((await res.json()).data).toEqual([]);
   });
 
   test('GET / returns locations sorted by name ASC', async () => {
@@ -22,13 +22,13 @@ describe('Locations API', () => {
     await seed.location({ name: 'Alpha Store' });
     await seed.location({ name: 'Beta Depot' });
 
-    const res = await app.request('/', { headers: authHeader });
+    const res = await app.request('/?sortDir=asc', { headers: authHeader });
     expect(res.status).toBe(200);
     const locations = await res.json();
-    expect(locations).toHaveLength(3);
-    expect(locations[0].name).toBe('Alpha Store');
-    expect(locations[1].name).toBe('Beta Depot');
-    expect(locations[2].name).toBe('Charlie Warehouse');
+    expect(locations.data).toHaveLength(3);
+    expect(locations.data[0].name).toBe('Alpha Store');
+    expect(locations.data[1].name).toBe('Beta Depot');
+    expect(locations.data[2].name).toBe('Charlie Warehouse');
   });
 
   test('POST / creates a location with all fields', async () => {
@@ -100,7 +100,7 @@ describe('Locations API', () => {
     // Location should be gone — but GET /:id doesn't exist on this route
     // Verify via list instead
     const listRes = await app.request('/', { headers: authHeader });
-    expect(await listRes.json()).toHaveLength(0);
+    expect((await listRes.json()).data).toHaveLength(0);
   });
 
   test('DELETE /:id returns 404 for missing location', async () => {

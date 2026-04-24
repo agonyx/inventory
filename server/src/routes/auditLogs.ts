@@ -4,15 +4,11 @@ import { z } from 'zod';
 import { AppDataSource } from '../data-source';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
 import { AppError, ErrorCode } from '../errors/app-error';
+import { parsePagination, buildPaginationResponse } from '../utils/pagination';
 
 const auditRepo = () => AppDataSource.getRepository(AuditLog);
 
 const listQuerySchema = z.object({
-  page: z.string().optional().transform((v) => (v ? parseInt(v, 10) : 1)),
-  limit: z.string().optional().transform((v) => {
-    const n = v ? parseInt(v, 10) : 25;
-    return Math.min(Math.max(n, 1), 100);
-  }),
   entityType: z.string().optional(),
   entityId: z.string().uuid().optional(),
   action: z.nativeEnum(AuditAction).optional(),
@@ -24,7 +20,8 @@ const listQuerySchema = z.object({
 const app = new Hono();
 
 app.get('/', zValidator('query', listQuerySchema), async (c) => {
-  const { page, limit, entityType, entityId, action, performedBy, from, to } = c.req.valid('query');
+  const { entityType, entityId, action, performedBy, from, to } = c.req.valid('query');
+  const { page, limit } = parsePagination(c.req.query());
 
   const where: any = {};
   if (entityType) where.entityType = entityType;
@@ -46,12 +43,7 @@ app.get('/', zValidator('query', listQuerySchema), async (c) => {
 
   return c.json({
     data: logs,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
+    pagination: buildPaginationResponse(page, limit, total),
   });
 });
 

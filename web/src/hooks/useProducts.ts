@@ -41,10 +41,16 @@ export interface Location {
   address: string | null;
 }
 
-export function useProducts() {
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export function useProducts(params?: Record<string, string>) {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return useQuery({
-    queryKey: ['products'],
-    queryFn: () => apiFetch<Product[]>('/products'),
+    queryKey: ['products', params],
+    queryFn: () => apiFetch<PaginatedResponse<Product>>(`/products${qs}`),
   });
 }
 
@@ -77,6 +83,41 @@ export function useDeleteProduct() {
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch(`/products/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+}
+
+export function useAddVariant(productId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<ProductVariant>) =>
+      apiFetch<ProductVariant>(`/products/${productId}/variants`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+}
+
+export function useUpdateVariant(productId: string, variantId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<ProductVariant>) =>
+      apiFetch<ProductVariant>(`/products/${productId}/variants/${variantId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+}
+
+export function useDeleteVariant(productId: string, variantId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch(`/products/${productId}/variants/${variantId}`, {
+        method: 'DELETE',
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
   });
 }

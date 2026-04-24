@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
 export interface Order {
   id: string;
   externalOrderId: string;
@@ -30,10 +35,11 @@ export interface OrderItem {
   } | null;
 }
 
-export function useOrders(status?: string) {
+export function useOrders(params?: Record<string, string>) {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return useQuery({
-    queryKey: ['orders', status],
-    queryFn: () => apiFetch<Order[]>(`/orders${status ? `?status=${status}` : ''}`),
+    queryKey: ['orders', params],
+    queryFn: () => apiFetch<PaginatedResponse<Order>>(`/orders${qs}`),
   });
 }
 

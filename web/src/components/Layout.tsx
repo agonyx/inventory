@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Package, ClipboardList, AlertTriangle, FileText, Menu, X, LogOut, User } from 'lucide-react';
+import { Package, ClipboardList, AlertTriangle, FileText, MapPin, Warehouse, Menu, X, LogOut, User } from 'lucide-react';
 import { useAuth, useLogout } from '../hooks/useAuth';
 
 export default function Layout() {
@@ -39,6 +39,12 @@ export default function Layout() {
             </NavLink>
             <NavLink to="/audit-logs" className={linkClass}>
               <FileText size={16} /> Audit Logs
+            </NavLink>
+            <NavLink to="/locations" className={linkClass}>
+              <MapPin size={16} /> Locations
+            </NavLink>
+            <NavLink to="/inventory" className={linkClass}>
+              <Warehouse size={16} /> Inventory
             </NavLink>
           </nav>
 
@@ -81,6 +87,12 @@ export default function Layout() {
             </NavLink>
             <NavLink to="/audit-logs" className={linkClass} onClick={closeMobileMenu}>
               <FileText size={16} /> Audit Logs
+            </NavLink>
+            <NavLink to="/locations" className={linkClass} onClick={closeMobileMenu}>
+              <MapPin size={16} /> Locations
+            </NavLink>
+            <NavLink to="/inventory" className={linkClass} onClick={closeMobileMenu}>
+              <Warehouse size={16} /> Inventory
             </NavLink>
           </nav>
         )}

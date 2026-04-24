@@ -18,7 +18,7 @@ describe('Orders API', () => {
   test('GET / returns empty array when no orders', async () => {
     const res = await app.request('/', { headers: authHeader });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect((await res.json()).data).toEqual([]);
   });
 
   test('GET / filters by status', async () => {
@@ -29,11 +29,11 @@ describe('Orders API', () => {
     const res = await app.request('/?status=pending', { headers: authHeader });
     expect(res.status).toBe(200);
     const orders = await res.json();
-    expect(orders).toHaveLength(2);
-    expect(orders.every((o: any) => o.status === 'pending')).toBe(true);
+    expect(orders.data).toHaveLength(2);
+    expect(orders.data.every((o: any) => o.status === 'pending')).toBe(true);
 
     const shippedRes = await app.request('/?status=shipped', { headers: authHeader });
-    expect(await shippedRes.json()).toHaveLength(1);
+    expect((await shippedRes.json()).data).toHaveLength(1);
   });
 
   test('GET /:id returns order with relations', async () => {

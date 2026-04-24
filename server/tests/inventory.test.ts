@@ -18,7 +18,7 @@ describe('Inventory API', () => {
   test('GET / returns empty array when no inventory', async () => {
     const res = await app.request('/', { headers: authHeader });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect((await res.json()).data).toEqual([]);
   });
 
   test('GET / returns inventory levels with variant and location relations', async () => {
@@ -28,9 +28,9 @@ describe('Inventory API', () => {
     const res = await app.request('/', { headers: authHeader });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.length).toBeGreaterThan(0);
+    expect(body.data.length).toBeGreaterThan(0);
 
-    const level = body[0];
+    const level = body.data[0];
     expect(level.id).toBeDefined();
     expect(level.quantity).toBe(100);
     expect(level.reservedQuantity).toBe(0);

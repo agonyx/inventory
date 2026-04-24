@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { apiFetch } from '../api/client';
 import type { Product, ProductVariant } from '../hooks/useProducts';
-import { useCreateProduct, useUpdateProduct } from '../hooks/useProducts';
+import {
+  useCreateProduct,
+  useUpdateProduct,
+} from '../hooks/useProducts';
 
 interface VariantRow {
+  id?: string; // existing variant id for edit mode
   name: string;
   sku: string;
   description: string;
+  _isNew?: boolean; // track variants added during edit
 }
 
 interface ProductFormProps {
   product?: Product | null;
   onClose: () => void;
+  onSuccess?: (isEdit: boolean) => void;
 }
 
-export default function ProductForm({ product, onClose }: ProductFormProps) {
+export default function ProductForm({ product, onClose, onSuccess }: ProductFormProps) {
   const isEdit = !!product;
 
   const [name, setName] = useState('');
@@ -28,8 +37,12 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
   ]);
   const [error, setError] = useState<string | null>(null);
 
+  // Per-field validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const qc = useQueryClient();
 
   useEffect(() => {
     if (product) {
@@ -42,6 +55,7 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
       if (product.variants.length) {
         setVariants(
           product.variants.map((v) => ({
+            id: v.id,
             name: v.name,
             sku: v.sku,
             description: v.description || '',
@@ -61,10 +75,31 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
   }, [onClose]);
 
   const addVariantRow = () => {
-    setVariants((prev) => [...prev, { name: '', sku: '', description: '' }]);
+    setVariants((prev) => [...prev, { name: '', sku: '', description: '', _isNew: true }]);
   };
 
   const removeVariantRow = (index: number) => {
+    const variant = variants[index];
+
+    // In edit mode, check if the variant has inventory before removing
+    if (isEdit && product && variant.id) {
+      const existingVariant = product.variants.find((v) => v.id === variant.id);
+      if (existingVariant) {
+        const totalQty = existingVariant.inventoryLevels.reduce(
+          (sum, lvl) => sum + lvl.quantity,
+          0,
+        );
+        if (totalQty > 0) {
+          toast.warning('Variant has inventory');
+          return;
+        }
+        // Delete from backend
+        apiFetch(`/products/${product.id}/variants/${variant.id}`, { method: 'DELETE' })
+          .then(() => { qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Variant removed'); })
+          .catch(() => toast.error('Failed to remove variant'));
+      }
+    }
+
     setVariants((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -81,6 +116,7 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setTouched({ name: true, sku: true });
 
     if (!name.trim() || !sku.trim()) {
       setError('Name and SKU are required.');
@@ -119,16 +155,35 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
       if (isEdit && product) {
         const { variants: _v, ...productFields } = payload;
         await updateProduct.mutateAsync({ id: product.id, ...productFields });
+
+        // Also create any new variants added during edit
+        if (product) {
+          for (const v of variants) {
+            if (v._isNew && v.name.trim() && v.sku.trim()) {
+              await apiFetch(`/products/${product.id}/variants`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  name: v.name.trim(),
+                  sku: v.sku.trim(),
+                  description: v.description.trim() || null,
+                }),
+              });
+            }
+          }
+        }
       } else {
         await createProduct.mutateAsync(payload as any);
       }
-      onClose();
+      onSuccess?.(isEdit);
     } catch (err: any) {
       setError(err.message || 'Something went wrong.');
     }
   };
 
   const isSubmitting = createProduct.isPending || updateProduct.isPending;
+
+  const nameError = touched.name && !name.trim();
+  const skuError = touched.sku && !sku.trim();
 
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center">
@@ -170,10 +225,16 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  nameError ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="e.g. Widget Pro"
                 autoFocus
               />
+              {nameError && (
+                <p className="mt-1 text-xs text-red-600">Product name is required.</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -183,9 +244,15 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
                 type="text"
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                onBlur={() => setTouched((t) => ({ ...t, sku: true }))}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono ${
+                  skuError ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="e.g. WDG-001"
               />
+              {skuError && (
+                <p className="mt-1 text-xs text-red-600">SKU is required.</p>
+              )}
             </div>
           </div>
 
@@ -267,7 +334,7 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
               <div className="space-y-2">
                 {variants.map((variant, idx) => (
                   <div
-                    key={idx}
+                    key={variant.id || idx}
                     className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2 p-3 bg-gray-50 rounded-lg"
                   >
                     <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">

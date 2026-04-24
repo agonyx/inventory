@@ -1,12 +1,16 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+import { Like, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { Order, OrderStatus } from '../entities/Order';
 import { InventoryLevel } from '../entities/InventoryLevel';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
 import { AppError, ErrorCode } from '../errors/app-error';
 import { errorHandler } from '../middleware/error-handler';
+import { parsePagination, buildPaginationResponse, paginate } from '../utils/pagination';
+import { parseSort } from '../utils/sort';
+import { exportToCsv, getCsvFilename } from '../utils/csv-export';
 
 const orderRepo = () => AppDataSource.getRepository(Order);
 const auditRepo = () => AppDataSource.getRepository(AuditLog);
@@ -16,18 +20,109 @@ const statusSchema = z.object({
   status: z.nativeEnum(OrderStatus),
 });
 
+const ORDER_SORT_COLUMNS = ['createdAt', 'totalAmount', 'customerName'];
+
 const app = new Hono();
 app.onError(errorHandler);
 
 app.get('/', async (c) => {
-  const status = c.req.query('status');
-  const where = status ? { status: status as OrderStatus } : {};
-  const orders = await orderRepo().find({
+  const query = c.req.query();
+  const { page, limit } = parsePagination(query);
+  const { sortBy, sortDir } = parseSort(query, ORDER_SORT_COLUMNS);
+
+  // Build base conditions (AND)
+  const conditions: Record<string, any> = {};
+
+  if (query.status) conditions.status = query.status as OrderStatus;
+  if (query.source) conditions.source = query.source;
+
+  // Date range on createdAt
+  if (query.from && query.to) {
+    conditions.createdAt = Between(new Date(query.from), new Date(query.to));
+  } else if (query.from) {
+    conditions.createdAt = MoreThanOrEqual(new Date(query.from));
+  } else if (query.to) {
+    conditions.createdAt = LessThanOrEqual(new Date(query.to));
+  }
+
+  // Search with ILIKE (OR across fields)
+  let where: any;
+  if (query.search) {
+    const pattern = Like(`%${query.search}%`);
+    where = [
+      { ...conditions, externalOrderId: pattern },
+      { ...conditions, customerName: pattern },
+      { ...conditions, customerEmail: pattern },
+    ];
+  } else {
+    where = Object.keys(conditions).length > 0 ? conditions : {};
+  }
+
+  const [orders, total] = await orderRepo().findAndCount({
     where,
     relations: ['items', 'items.variant', 'items.variant.product'],
-    order: { createdAt: 'DESC' },
+    order: { [sortBy]: sortDir },
+    ...paginate(page, limit),
   });
-  return c.json(orders);
+
+  return c.json({
+    data: orders,
+    pagination: buildPaginationResponse(page, limit, total),
+  });
+});
+
+// GET /api/orders/export — CSV export
+app.get('/export', async (c) => {
+  const query = c.req.query();
+  const { sortBy, sortDir } = parseSort(query, ORDER_SORT_COLUMNS);
+
+  const conditions: Record<string, any> = {};
+  if (query.status) conditions.status = query.status as OrderStatus;
+  if (query.source) conditions.source = query.source;
+
+  if (query.from && query.to) {
+    conditions.createdAt = Between(new Date(query.from), new Date(query.to));
+  } else if (query.from) {
+    conditions.createdAt = MoreThanOrEqual(new Date(query.from));
+  } else if (query.to) {
+    conditions.createdAt = LessThanOrEqual(new Date(query.to));
+  }
+
+  let where: any;
+  if (query.search) {
+    const pattern = Like(`%${query.search}%`);
+    where = [
+      { ...conditions, externalOrderId: pattern },
+      { ...conditions, customerName: pattern },
+      { ...conditions, customerEmail: pattern },
+    ];
+  } else {
+    where = Object.keys(conditions).length > 0 ? conditions : {};
+  }
+
+  const [orders] = await orderRepo().findAndCount({
+    where,
+    order: { [sortBy]: sortDir },
+  });
+
+  const headers = ['externalOrderId', 'status', 'customerName', 'customerEmail', 'totalAmount', 'source', 'createdAt'];
+  const rows = orders.map((o) => ({
+    externalOrderId: o.externalOrderId,
+    status: o.status,
+    customerName: o.customerName,
+    customerEmail: o.customerEmail,
+    totalAmount: o.totalAmount,
+    source: o.source || '',
+    createdAt: o.createdAt?.toISOString(),
+  }));
+
+  const csv = exportToCsv(headers, rows);
+  return new Response(csv, {
+    headers: {
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename="${getCsvFilename('orders')}"`,
+    },
+  });
 });
 
 app.get('/:id', async (c) => {

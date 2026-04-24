@@ -14,7 +14,7 @@ describe('Products API', () => {
   test('GET / returns empty array when no products', async () => {
     const res = await app.request('/', { headers: authHeader });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect((await res.json()).data).toEqual([]);
   });
 
   test('POST / creates a product', async () => {
