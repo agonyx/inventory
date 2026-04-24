@@ -7,6 +7,9 @@ export enum AuditAction {
   ADJUST_STOCK = 'adjust_stock',
   CREATE_ORDER = 'create_order',
   UPDATE_ORDER_STATUS = 'update_order_status',
+  TRANSFER_COMPLETED = 'transfer_completed',
+  TRANSFER_CANCELLED = 'transfer_cancelled',
+  STOCKTAKE_COMPLETED = 'stocktake_completed',
 }
 
 @Entity('audit_logs')
