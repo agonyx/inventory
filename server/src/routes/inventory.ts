@@ -5,6 +5,8 @@ import { AppDataSource } from '../data-source';
 import { InventoryLevel } from '../entities/InventoryLevel';
 import { StockAdjustment, AdjustmentReason } from '../entities/StockAdjustment';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
+import { AppError, ErrorCode } from '../errors/app-error';
+import { errorHandler } from '../middleware/error-handler';
 
 const inventoryRepo = () => AppDataSource.getRepository(InventoryLevel);
 const adjustmentRepo = () => AppDataSource.getRepository(StockAdjustment);
@@ -18,6 +20,7 @@ const adjustSchema = z.object({
 });
 
 const app = new Hono();
+app.onError(errorHandler);
 
 // GET /api/inventory — list all inventory levels with variant and location
 app.get('/', async (c) => {
@@ -37,17 +40,17 @@ app.post('/:id/adjust', zValidator('json', adjustSchema), async (c) => {
     where: { id },
     relations: ['variant'],
   });
-  if (!level) return c.json({ error: 'Inventory level not found' }, 404);
+  if (!level) throw new AppError(404, ErrorCode.NOT_FOUND, 'Inventory level not found');
 
   const previousQty = level.quantity;
   const newQty = previousQty + data.quantityChange;
 
   if (newQty < 0) {
-    return c.json({ error: 'Cannot reduce stock below zero' }, 400);
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot reduce stock below zero');
   }
 
   if (newQty < level.reservedQuantity) {
-    return c.json({ error: 'Cannot reduce stock below reserved quantity' }, 400);
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot reduce stock below reserved quantity');
   }
 
   level.quantity = newQty;

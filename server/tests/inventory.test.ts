@@ -123,7 +123,7 @@ describe('Inventory API', () => {
     });
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/below zero/i);
+    expect(body.error.message).toMatch(/below zero/i);
 
     // Verify stock unchanged
     const unchanged = await AppDataSource.getRepository(InventoryLevel).findOne({ where: { id: levelId } });
@@ -158,7 +158,7 @@ describe('Inventory API', () => {
     });
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/below reserved/i);
+    expect(body.error.message).toMatch(/below reserved/i);
 
     // Verify stock unchanged
     const unchanged = await AppDataSource.getRepository(InventoryLevel).findOne({ where: { id: levelId } });
@@ -176,7 +176,7 @@ describe('Inventory API', () => {
     });
     expect(res.status).toBe(404);
     const body = await res.json();
-    expect(body.error).toMatch(/not found/i);
+    expect(body.error.message).toMatch(/not found/i);
   });
 
   test('POST /:id/adjust creates StockAdjustment with correct reason and metadata', async () => {

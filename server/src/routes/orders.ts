@@ -5,6 +5,8 @@ import { AppDataSource } from '../data-source';
 import { Order, OrderStatus } from '../entities/Order';
 import { InventoryLevel } from '../entities/InventoryLevel';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
+import { AppError, ErrorCode } from '../errors/app-error';
+import { errorHandler } from '../middleware/error-handler';
 
 const orderRepo = () => AppDataSource.getRepository(Order);
 const auditRepo = () => AppDataSource.getRepository(AuditLog);
@@ -15,6 +17,7 @@ const statusSchema = z.object({
 });
 
 const app = new Hono();
+app.onError(errorHandler);
 
 app.get('/', async (c) => {
   const status = c.req.query('status');
@@ -33,7 +36,7 @@ app.get('/:id', async (c) => {
     where: { id },
     relations: ['items', 'items.variant', 'items.variant.product'],
   });
-  if (!order) return c.json({ error: 'Not found' }, 404);
+  if (!order) throw new AppError(404, ErrorCode.NOT_FOUND, 'Order not found');
   return c.json(order);
 });
 
@@ -44,7 +47,7 @@ app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
     where: { id },
     relations: ['items', 'items.variant'],
   });
-  if (!order) return c.json({ error: 'Not found' }, 404);
+  if (!order) throw new AppError(404, ErrorCode.NOT_FOUND, 'Order not found');
 
   const oldStatus = order.status;
   order.status = status;
