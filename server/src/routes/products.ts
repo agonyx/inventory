@@ -50,6 +50,7 @@ app.get('/', async (c) => {
   const { page, limit } = parsePagination(c.req.query());
   const { sortBy, sortDir } = parseSort(c.req.query(), ALLOWED_SORT_COLUMNS);
   const search = c.req.query('search');
+  const barcode = c.req.query('barcode');
   const category = c.req.query('category');
   const stockStatus = c.req.query('stockStatus');
 
@@ -71,10 +72,32 @@ app.get('/', async (c) => {
   let products: Product[];
   let total: number;
 
+  // If barcode search is provided, find matching variant product IDs first
+  let barcodeProductIds: string[] | null = null;
+  if (barcode) {
+    const matchingVariants = await variantRepo().find({
+      where: { barcode: Like(`%${barcode}%`) },
+      select: ['productId'],
+    });
+    const uniqueIds = [...new Set(matchingVariants.map((v) => v.productId))];
+    if (uniqueIds.length > 0) {
+      barcodeProductIds = uniqueIds;
+    } else {
+      // No variants match the barcode — return empty result
+      return c.json({
+        data: [],
+        pagination: buildPaginationResponse(page, limit, 0),
+      });
+    }
+  }
+
   if (stockStatus) {
     // Need to load all matching products to filter by computed stock
+    const effectiveWhere = barcodeProductIds
+      ? { ...where, id: In(barcodeProductIds) }
+      : where;
     const allResults = await productRepo().find({
-      where,
+      where: effectiveWhere,
       relations,
       order: { [sortBy]: sortDir },
     });
@@ -112,6 +135,19 @@ app.get('/', async (c) => {
       }
     } else {
       findWhere = where;
+    }
+
+    // If barcode search is active, narrow results to matching product IDs
+    if (barcodeProductIds) {
+      if (Array.isArray(findWhere)) {
+        // Wrap each OR condition with the barcode ID constraint
+        findWhere = findWhere.map((cond: any) => ({
+          ...cond,
+          id: In(barcodeProductIds),
+        }));
+      } else {
+        findWhere = { ...findWhere, id: In(barcodeProductIds) };
+      }
     }
 
     const [results, count] = await productRepo().findAndCount({

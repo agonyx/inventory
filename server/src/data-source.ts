@@ -10,6 +10,10 @@ import { OrderItem } from './entities/OrderItem';
 import { StockAdjustment } from './entities/StockAdjustment';
 import { AuditLog } from './entities/AuditLog';
 import { User } from './entities/User';
+import { Transfer } from './entities/Transfer';
+import { TransferItem } from './entities/TransferItem';
+import { Stocktake } from './entities/Stocktake';
+import { StocktakeItem } from './entities/StocktakeItem';
 
 dotenv.config();
 
@@ -18,7 +22,7 @@ export const AppDataSource = new DataSource({
   url: process.env.DATABASE_URL,
   synchronize: process.env.NODE_ENV !== 'production',
   logging: false,
-  entities: [Product, ProductVariant, Location, InventoryLevel, Order, OrderItem, StockAdjustment, AuditLog, User],
+  entities: [Product, ProductVariant, Location, InventoryLevel, Order, OrderItem, StockAdjustment, AuditLog, User, Transfer, TransferItem, Stocktake, StocktakeItem],
   migrations: [__dirname + '/migrations/**/*.ts'],
 });
 if (import.meta.main) {

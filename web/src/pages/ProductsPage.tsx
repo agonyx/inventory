@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Download } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Download, Trash2, X, ScanBarcode } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useProducts,
@@ -10,6 +10,7 @@ import {
   type ProductVariant,
   type InventoryLevel,
 } from '../hooks/useProducts';
+import { useBulkDeleteProducts } from '../hooks/useBulkOperations';
 import useUrlFilters from '../hooks/useUrlFilters';
 import ProductTable from '../components/ProductTable';
 import ProductForm from '../components/ProductForm';
@@ -77,6 +78,7 @@ export default function ProductsPage() {
   const deleteProduct = useDeleteProduct();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const bulkDelete = useBulkDeleteProducts();
 
   const products = data?.data || [];
   const pagination = data?.pagination;
@@ -89,6 +91,60 @@ export default function ProductsPage() {
     product: Product;
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Barcode search (local state, pushed as a URL filter param)
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const [barcodeInput, setBarcodeInput] = useState(filters.barcode || '');
+
+  // Sync barcode input when filters.barcode changes externally (e.g. reset)
+  useEffect(() => {
+    setBarcodeInput(filters.barcode || '');
+  }, [filters.barcode]);
+
+  const handleBarcodeSearch = (value: string) => {
+    const trimmed = value.trim();
+    setFilter('barcode', trimmed);
+  };
+
+  // Clear selection when products change
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [products]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === products.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(products.map((p) => p.id)));
+    }
+  };
+
+  const allSelected = products.length > 0 && selectedIds.size === products.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const handleBulkDelete = () => {
+    bulkDelete.mutate(Array.from(selectedIds), {
+      onSuccess: (data: { deleted: number }) => {
+        toast.success(`${data.deleted} product(s) deleted`);
+        setSelectedIds(new Set());
+      },
+      onError: (err: any) => {
+        toast.error(err.message || 'Failed to delete products');
+      },
+    });
+  };
 
   const handleAdd = () => {
     setEditingProduct(null);
@@ -145,6 +201,49 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-4">
+      {/* Barcode Search — prominent, scanner-friendly input */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <ScanBarcode
+            size={16}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-500"
+          />
+          <input
+            ref={barcodeInputRef}
+            type="text"
+            value={barcodeInput}
+            onChange={(e) => setBarcodeInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleBarcodeSearch(barcodeInput);
+              }
+            }}
+            onBlur={() => {
+              // Only trigger if different from current filter
+              const trimmed = barcodeInput.trim();
+              if (trimmed !== (filters.barcode || '')) {
+                handleBarcodeSearch(barcodeInput);
+              }
+            }}
+            placeholder="Scan or type barcode..."
+            className="w-full pl-9 pr-3 py-2 text-sm border-2 border-blue-200 rounded-lg bg-blue-50/50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+          />
+        </div>
+        {filters.barcode && (
+          <button
+            onClick={() => {
+              setBarcodeInput('');
+              setFilter('barcode', '');
+              barcodeInputRef.current?.focus();
+            }}
+            className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
+            title="Clear barcode filter"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
       {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3">
         <FilterBar
@@ -171,6 +270,11 @@ export default function ProductsPage() {
         sortBy={sortBy}
         sortDir={sortDir as 'ASC' | 'DESC' | undefined}
         onSort={setSort}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+        onToggleSelectAll={toggleSelectAll}
+        allSelected={allSelected}
+        someSelected={someSelected}
       />
 
       {/* Pagination */}
@@ -214,6 +318,40 @@ export default function ProductsPage() {
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <ConfirmModal
+        open={selectedIds.size > 0 && !deleteTarget}
+        title="Delete Selected Products"
+        message={`Are you sure you want to delete ${selectedIds.size} selected product(s)? This action cannot be undone.`}
+        confirmLabel={`Delete ${selectedIds.size} Product(s)`}
+        variant="danger"
+        onConfirm={handleBulkDelete}
+        onCancel={() => setSelectedIds(new Set())}
+      />
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="p-1 hover:bg-gray-700 rounded transition"
+            title="Clear selection"
+          >
+            <X size={16} />
+          </button>
+          <div className="w-px h-5 bg-gray-600" />
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkDelete.isPending}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition"
+          >
+            <Trash2 size={14} />
+            {bulkDelete.isPending ? 'Deleting...' : 'Delete Selected'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

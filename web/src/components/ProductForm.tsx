@@ -13,6 +13,7 @@ interface VariantRow {
   id?: string; // existing variant id for edit mode
   name: string;
   sku: string;
+  barcode: string;
   description: string;
   _isNew?: boolean; // track variants added during edit
 }
@@ -33,7 +34,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
   const [price, setPrice] = useState('');
   const [lowStockThreshold, setLowStockThreshold] = useState('5');
   const [variants, setVariants] = useState<VariantRow[]>([
-    { name: '', sku: '', description: '' },
+    { name: '', sku: '', barcode: '', description: '' },
   ]);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +59,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
             id: v.id,
             name: v.name,
             sku: v.sku,
+            barcode: v.barcode || '',
             description: v.description || '',
           })),
         );
@@ -75,7 +77,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
   }, [onClose]);
 
   const addVariantRow = () => {
-    setVariants((prev) => [...prev, { name: '', sku: '', description: '', _isNew: true }]);
+    setVariants((prev) => [...prev, { name: '', sku: '', barcode: '', description: '', _isNew: true }]);
   };
 
   const removeVariantRow = (index: number) => {
@@ -147,6 +149,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
         .map((v) => ({
           name: v.name.trim(),
           sku: v.sku.trim(),
+          barcode: v.barcode.trim() || null,
           description: v.description.trim() || null,
         })),
     };
@@ -165,6 +168,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
                 body: JSON.stringify({
                   name: v.name.trim(),
                   sku: v.sku.trim(),
+                  barcode: v.barcode.trim() || null,
                   description: v.description.trim() || null,
                 }),
               });
@@ -337,7 +341,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
                     key={variant.id || idx}
                     className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2 p-3 bg-gray-50 rounded-lg"
                   >
-                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <input
                         type="text"
                         value={variant.name}
@@ -355,6 +359,15 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
                         }
                         className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                         placeholder="SKU"
+                      />
+                      <input
+                        type="text"
+                        value={variant.barcode}
+                        onChange={(e) =>
+                          updateVariant(idx, 'barcode', e.target.value)
+                        }
+                        className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                        placeholder="Barcode (EAN, UPC...)"
                       />
                     </div>
                     <div className="flex items-center gap-2">

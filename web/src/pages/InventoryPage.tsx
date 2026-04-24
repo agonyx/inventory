@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Download, Warehouse, SlidersHorizontal } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Download, Warehouse, SlidersHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
 import useUrlFilters from '../hooks/useUrlFilters';
 import FilterBar from '../components/FilterBar';
@@ -8,6 +8,7 @@ import Pagination from '../components/Pagination';
 import SortableHeader from '../components/SortableHeader';
 import SkeletonTable from '../components/SkeletonTable';
 import StockAdjustDialog from '../components/StockAdjustDialog';
+import BulkAdjustModal from '../components/BulkAdjustModal';
 import { useInventory, type InventoryLevel } from '../hooks/useInventory';
 import { useLocations } from '../hooks/useLocations';
 import type { Product, ProductVariant } from '../hooks/useProducts';
@@ -57,10 +58,41 @@ export default function InventoryPage() {
   // Stock adjust dialog
   const [adjustTarget, setAdjustTarget] = useState<InventoryLevel | null>(null);
 
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAdjustOpen, setBulkAdjustOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [inventoryLevels]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === inventoryLevels.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(inventoryLevels.map((l) => l.id)));
+    }
+  };
+
+  const allSelected = inventoryLevels.length > 0 && selectedIds.size === inventoryLevels.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
   const handleExportCsv = () => {
     const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
     window.open(`/api/inventory/export${qs}`, '_blank');
   };
+
+  // Get selected inventory levels for bulk adjust
+  const selectedLevels = inventoryLevels.filter((l) => selectedIds.has(l.id));
 
   if (isLoading) {
     return (
@@ -112,53 +144,72 @@ export default function InventoryPage() {
             {inventoryLevels.map((level) => {
               const available = level.quantity - level.reservedQuantity;
               const isLow = available <= 5;
+              const isSelected = selectedIds.has(level.id);
               return (
                 <div
                   key={level.id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-4"
+                  className={`bg-white rounded-xl shadow-sm border border-gray-200 p-4 ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900 truncate">
-                        {level.variant?.product?.name || 'Unknown'}
-                      </p>
-                      <p className="text-sm text-gray-500 truncate">
-                        {level.variant?.name || 'N/A'}{' '}
-                        <span className="text-gray-400 font-mono text-xs">
-                          ({level.variant?.sku || 'N/A'})
-                        </span>
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {level.location?.name || 'Unknown'}
-                        {level.location?.type ? ` · ${level.location.type}` : ''}
-                      </p>
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleSelect(level.id);
+                      }}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">
+                            {level.variant?.product?.name || 'Unknown'}
+                          </p>
+                          <p className="text-sm text-gray-500 truncate">
+                            {level.variant?.name || 'N/A'}{' '}
+                            <span className="text-gray-400 font-mono text-xs">
+                              ({level.variant?.sku || 'N/A'})
+                            </span>
+                          </p>
+                          {level.variant?.barcode && (
+                            <p className="text-xs text-gray-400 font-mono mt-0.5">
+                              📋 {level.variant.barcode}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {level.location?.name || 'Unknown'}
+                            {level.location?.type ? ` · ${level.location.type}` : ''}
+                          </p>
+                        </div>
+                        <StatusBadge available={available} isLow={isLow} />
+                      </div>
+                      <div className="flex items-center gap-4 mt-3 text-sm">
+                        <div>
+                          <span className="text-gray-400 text-xs">Qty</span>
+                          <p className="font-semibold text-gray-700">{level.quantity}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 text-xs">Reserved</span>
+                          <p className="font-semibold text-gray-700">{level.reservedQuantity}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 text-xs">Available</span>
+                          <p className={`font-semibold ${isLow ? 'text-red-600' : 'text-green-600'}`}>
+                            {available}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-gray-100 flex justify-end">
+                        <button
+                          onClick={() => setAdjustTarget(level)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                        >
+                          <SlidersHorizontal size={12} />
+                          Adjust
+                        </button>
+                      </div>
                     </div>
-                    <StatusBadge available={available} isLow={isLow} />
-                  </div>
-                  <div className="flex items-center gap-4 mt-3 text-sm">
-                    <div>
-                      <span className="text-gray-400 text-xs">Qty</span>
-                      <p className="font-semibold text-gray-700">{level.quantity}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-xs">Reserved</span>
-                      <p className="font-semibold text-gray-700">{level.reservedQuantity}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-xs">Available</span>
-                      <p className={`font-semibold ${isLow ? 'text-red-600' : 'text-green-600'}`}>
-                        {available}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-2 border-t border-gray-100 flex justify-end">
-                    <button
-                      onClick={() => setAdjustTarget(level)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
-                    >
-                      <SlidersHorizontal size={12} />
-                      Adjust
-                    </button>
                   </div>
                 </div>
               );
@@ -171,9 +222,21 @@ export default function InventoryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-10 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = someSelected;
+                        }}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </th>
                     <th className="px-4 py-3">Product</th>
                     <th className="px-4 py-3">Variant</th>
                     <th className="px-4 py-3">SKU</th>
+                    <th className="px-4 py-3">Barcode</th>
                     <th className="px-4 py-3">Location</th>
                     <SortableHeader
                       label="Quantity"
@@ -198,8 +261,17 @@ export default function InventoryPage() {
                   {inventoryLevels.map((level) => {
                     const available = level.quantity - level.reservedQuantity;
                     const isLow = available <= 5;
+                    const isSelected = selectedIds.has(level.id);
                     return (
-                      <tr key={level.id} className="hover:bg-blue-50/50 transition-colors">
+                      <tr key={level.id} className={`hover:bg-blue-50/50 transition-colors ${isSelected ? 'bg-blue-50/60' : ''}`}>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(level.id)}
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
                         <td className="px-4 py-3 font-medium text-gray-900">
                           {level.variant?.product?.name || 'Unknown'}
                         </td>
@@ -208,6 +280,9 @@ export default function InventoryPage() {
                         </td>
                         <td className="px-4 py-3 text-gray-500 font-mono text-xs">
                           {level.variant?.sku || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">
+                          {level.variant?.barcode || <span className="text-gray-300">&mdash;</span>}
                         </td>
                         <td className="px-4 py-3 text-gray-500">
                           <span>{level.location?.name || 'Unknown'}</span>
@@ -288,6 +363,36 @@ export default function InventoryPage() {
           } as any}
           onClose={() => setAdjustTarget(null)}
         />
+      )}
+
+      {/* Bulk Adjust Modal */}
+      {bulkAdjustOpen && (
+        <BulkAdjustModal
+          levels={selectedLevels}
+          onClose={() => setBulkAdjustOpen(false)}
+        />
+      )}
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="p-1 hover:bg-gray-700 rounded transition"
+            title="Clear selection"
+          >
+            <X size={16} />
+          </button>
+          <div className="w-px h-5 bg-gray-600" />
+          <button
+            onClick={() => setBulkAdjustOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+          >
+            <SlidersHorizontal size={14} />
+            Bulk Adjust
+          </button>
+        </div>
       )}
     </div>
   );

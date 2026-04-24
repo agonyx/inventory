@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
   AlertTriangle,
   Download,
+  X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { apiFetch } from '../api/client';
+import { apiFetch, openAuthenticatedUrl } from '../api/client';
 import { useOrders, useUpdateOrderStatus, type Order } from '../hooks/useOrders';
+import { useBulkUpdateOrderStatus } from '../hooks/useBulkOperations';
 import useUrlFilters from '../hooks/useUrlFilters';
 import FilterBar from '../components/FilterBar';
 import type { FilterConfig } from '../components/FilterBar';
@@ -24,6 +26,14 @@ const STATUS_COLORS: Record<string, string> = {
   shipped: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
 };
+
+const STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'packed', label: 'Packed' },
+  { value: 'shipped', label: 'Shipped' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 function StatusBadge({ status }: { status: string }) {
   const color = STATUS_COLORS[status] || 'bg-gray-100 text-gray-700';
@@ -97,11 +107,56 @@ export default function OrdersPage() {
   const pagination = data?.pagination;
 
   const updateStatus = useUpdateOrderStatus();
+  const bulkUpdateStatus = useBulkUpdateOrderStatus();
+
   const { data: alerts = [] } = useQuery<LowStockAlert[]>({
     queryKey: ['alerts'],
     queryFn: () => apiFetch<LowStockAlert[]>('/alerts'),
     refetchInterval: 30000,
   });
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState('confirmed');
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [orders]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === orders.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(orders.map((o) => o.id)));
+    }
+  };
+
+  const allSelected = orders.length > 0 && selectedIds.size === orders.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const handleBulkStatusUpdate = () => {
+    bulkUpdateStatus.mutate(
+      { ids: Array.from(selectedIds), status: bulkStatus },
+      {
+        onSuccess: (data: { updated: number }) => {
+          toast.success(`${data.updated} order(s) updated to ${bulkStatus}`);
+          setSelectedIds(new Set());
+        },
+        onError: (err: any) => {
+          toast.error(err.message || 'Failed to update order statuses');
+        },
+      },
+    );
+  };
 
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -228,106 +283,130 @@ export default function OrdersPage() {
                   cancelled: 'Cancelled',
                 };
                 const next = nextStatus[order.status];
+                const isSelected = selectedIds.has(order.id);
 
                 return (
-                  <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                    <button
-                      onClick={() => toggleExpand(order.id)}
-                      className="w-full text-left"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {isExpanded ? (
-                            <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
-                          ) : (
-                            <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
-                          )}
-                          <div className="min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{order.customerName}</p>
-                            <p className="text-xs text-gray-400 truncate">{order.customerEmail}</p>
+                  <div key={order.id} className={`bg-white rounded-xl shadow-sm border border-gray-200 p-4 ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleSelect(order.id);
+                        }}
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <button
+                          onClick={() => toggleExpand(order.id)}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isExpanded ? (
+                                <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+                              ) : (
+                                <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
+                              )}
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{order.customerName}</p>
+                                <p className="text-xs text-gray-400 truncate">{order.customerEmail}</p>
+                              </div>
+                            </div>
+                            <StatusBadge status={order.status} />
                           </div>
+                          <div className="flex items-center gap-3 mt-2 ml-6 text-sm">
+                            <span className="text-gray-500 font-mono text-xs">{order.externalOrderId}</span>
+                            <span className="text-gray-700 font-medium">${Number(order.totalAmount).toFixed(2)}</span>
+                            <span className="text-gray-400">
+                              {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </button>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1 mt-3 ml-6">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openAuthenticatedUrl(`/orders/${order.id}/packing-slip`);
+                            }}
+                            className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                          >
+                            <Download size={12} className="inline mr-0.5" />
+                            Packing Slip
+                          </button>
+                          {canAdvance && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(order.id, next);
+                              }}
+                              disabled={updateStatus.isPending}
+                              className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                            >
+                              {nextLabel[order.status]}
+                            </button>
+                          )}
+                          {order.status !== 'cancelled' && order.status !== 'shipped' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(order.id, 'cancelled');
+                              }}
+                              disabled={updateStatus.isPending}
+                              className="px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                          )}
                         </div>
-                        <StatusBadge status={order.status} />
-                      </div>
-                      <div className="flex items-center gap-3 mt-2 ml-6 text-sm">
-                        <span className="text-gray-500 font-mono text-xs">{order.externalOrderId}</span>
-                        <span className="text-gray-700 font-medium">${Number(order.totalAmount).toFixed(2)}</span>
-                        <span className="text-gray-400">
-                          {order.items.length} item{order.items.length !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </button>
 
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-1 mt-3 ml-6">
-                      {canAdvance && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStatusChange(order.id, next);
-                          }}
-                          disabled={updateStatus.isPending}
-                          className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                        >
-                          {nextLabel[order.status]}
-                        </button>
-                      )}
-                      {order.status !== 'cancelled' && order.status !== 'shipped' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStatusChange(order.id, 'cancelled');
-                          }}
-                          disabled={updateStatus.isPending}
-                          className="px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition disabled:opacity-50"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Expanded items (mobile) */}
-                    {isExpanded && (
-                      <div className="mt-3 ml-6 bg-gray-50 rounded-lg p-3">
-                        {order.items.length === 0 ? (
-                          <p className="text-gray-400 text-sm italic">No items.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {order.items.map((item) => (
-                              <div key={item.id} className="bg-white rounded-md p-2.5 border border-gray-100">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div>
-                                    <p className="font-medium text-gray-700 text-sm">
-                                      {item.variant?.product?.name || 'Unknown'}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                      {item.variant?.name || item.externalSku || 'N/A'}
+                        {/* Expanded items (mobile) */}
+                        {isExpanded && (
+                          <div className="mt-3 ml-6 bg-gray-50 rounded-lg p-3">
+                            {order.items.length === 0 ? (
+                              <p className="text-gray-400 text-sm italic">No items.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {order.items.map((item) => (
+                                  <div key={item.id} className="bg-white rounded-md p-2.5 border border-gray-100">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div>
+                                        <p className="font-medium text-gray-700 text-sm">
+                                          {item.variant?.product?.name || 'Unknown'}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          {item.variant?.name || item.externalSku || 'N/A'}
+                                        </p>
+                                      </div>
+                                      <div className="text-right flex-shrink-0">
+                                        <p className="text-sm font-medium text-gray-700">
+                                          ${Number(item.unitPrice).toFixed(2)}
+                                        </p>
+                                        <p className="text-xs text-gray-400">× {item.quantity}</p>
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-gray-400 font-mono mt-0.5">
+                                      {item.variant?.sku || item.externalSku || 'N/A'}
                                     </p>
                                   </div>
-                                  <div className="text-right flex-shrink-0">
-                                    <p className="text-sm font-medium text-gray-700">
-                                      ${Number(item.unitPrice).toFixed(2)}
-                                    </p>
-                                    <p className="text-xs text-gray-400">× {item.quantity}</p>
-                                  </div>
-                                </div>
-                                <p className="text-xs text-gray-400 font-mono mt-0.5">
-                                  {item.variant?.sku || item.externalSku || 'N/A'}
+                                ))}
+                              </div>
+                            )}
+                            {order.shippingAddress && (
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <span className="text-xs font-medium text-gray-400 uppercase">Shipping Address</span>
+                                <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-line">
+                                  {order.shippingAddress}
                                 </p>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                        {order.shippingAddress && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <span className="text-xs font-medium text-gray-400 uppercase">Shipping Address</span>
-                            <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-line">
-                              {order.shippingAddress}
-                            </p>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               })}
@@ -339,6 +418,17 @@ export default function OrdersPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="w-10 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = someSelected;
+                          }}
+                          onChange={toggleSelectAll}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </th>
                       <th className="w-8 px-4 py-3" />
                       <th className="px-4 py-3">Order ID</th>
                       <SortableHeader
@@ -371,6 +461,7 @@ export default function OrdersPage() {
                   <tbody className="divide-y divide-gray-100">
                     {orders.map((order) => {
                       const isExpanded = expandedId === order.id;
+                      const isSelected = selectedIds.has(order.id);
 
                       return (
                         <OrderRow
@@ -380,6 +471,8 @@ export default function OrdersPage() {
                           onToggle={() => toggleExpand(order.id)}
                           onStatusChange={handleStatusChange}
                           isUpdating={updateStatus.isPending}
+                          isSelected={isSelected}
+                          onToggleSelect={toggleSelect}
                         />
                       );
                     })}
@@ -416,6 +509,39 @@ export default function OrdersPage() {
           </>
         )}
       </div>
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="p-1 hover:bg-gray-700 rounded transition"
+            title="Clear selection"
+          >
+            <X size={16} />
+          </button>
+          <div className="w-px h-5 bg-gray-600" />
+          <select
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value)}
+            className="bg-gray-800 text-white text-sm rounded-lg px-2 py-1.5 border border-gray-600 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleBulkStatusUpdate}
+            disabled={bulkUpdateStatus.isPending}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition"
+          >
+            {bulkUpdateStatus.isPending ? 'Updating...' : 'Update Status'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -426,12 +552,16 @@ function OrderRow({
   onToggle,
   onStatusChange,
   isUpdating,
+  isSelected,
+  onToggleSelect,
 }: {
   order: Order;
   isExpanded: boolean;
   onToggle: () => void;
   onStatusChange: (id: string, status: string) => void;
   isUpdating: boolean;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
 }) {
   const nextStatus: Record<string, string> = {
     pending: 'confirmed',
@@ -455,9 +585,19 @@ function OrderRow({
   return (
     <>
       <tr
-        className="hover:bg-blue-50/50 transition-colors cursor-pointer"
+        className={`hover:bg-blue-50/50 transition-colors cursor-pointer ${
+          isExpanded ? 'bg-blue-50/30' : ''
+        } ${isSelected ? 'bg-blue-50/60' : ''}`}
         onClick={onToggle}
       >
+        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(order.id)}
+            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+        </td>
         <td className="px-4 py-3 text-gray-400">
           {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </td>
@@ -491,6 +631,16 @@ function OrderRow({
         </td>
         <td className="px-4 py-3 text-right">
           <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openAuthenticatedUrl(`/orders/${order.id}/packing-slip`);
+              }}
+              className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+              title="Download Packing Slip"
+            >
+              <Download size={12} />
+            </button>
             {canAdvance && (
               <button
                 onClick={(e) => {
@@ -521,7 +671,7 @@ function OrderRow({
 
       {isExpanded && (
         <tr>
-          <td colSpan={9} className="p-0">
+          <td colSpan={10} className="p-0">
             <div className="bg-gray-50/80 px-12 py-4">
               {order.items.length === 0 ? (
                 <p className="text-gray-400 text-sm italic">No items.</p>

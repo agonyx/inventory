@@ -96,3 +96,15 @@ export function logout() {
   clearTokens();
   window.location.href = '/login';
 }
+
+/**
+ * Open a binary URL (PDF, CSV, etc.) with the auth token attached.
+ * Appends token as a query param since we can't set headers on window.open.
+ */
+export function openAuthenticatedUrl(path: string, options?: { download?: boolean }) {
+  const token = getAccessToken();
+  const url = new URL(`${API_BASE}${path}`, window.location.origin);
+  if (options?.download) url.searchParams.set('download', 'true');
+  if (token) url.searchParams.set('token', token);
+  window.open(url.toString(), '_blank');
+}

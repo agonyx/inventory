@@ -19,6 +19,10 @@ import { Order, OrderStatus } from '../src/entities/Order';
 import { OrderItem } from '../src/entities/OrderItem';
 import { AuditLog } from '../src/entities/AuditLog';
 import { User, UserRole } from '../src/entities/User';
+import { Transfer } from '../src/entities/Transfer';
+import { TransferItem } from '../src/entities/TransferItem';
+import { Stocktake } from '../src/entities/Stocktake';
+import { StocktakeItem } from '../src/entities/StocktakeItem';
 import { generateTokens } from '../src/services/auth';
 
 export const AUTH_TOKEN = process.env.AUTH_TOKEN || 'niche-inventory-secret-2026';
@@ -61,6 +65,7 @@ export async function cleanTables() {
   if (!AppDataSource.isInitialized) return;
   await AppDataSource.query(`
     TRUNCATE TABLE audit_logs, stock_adjustments, order_items, orders,
+             transfer_items, transfers, stocktake_items, stocktakes,
              inventory_levels, product_variants, products, locations, users
     RESTART IDENTITY CASCADE
   `);

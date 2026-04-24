@@ -12,6 +12,8 @@ import PickListPage from './pages/PickListPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import LocationsPage from './pages/LocationsPage';
 import InventoryPage from './pages/InventoryPage';
+import TransfersPage from './pages/TransfersPage';
+import StocktakesPage from './pages/StocktakesPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -42,6 +44,8 @@ export default function App() {
               <Route path="/audit-logs" element={<AuditLogsPage />} />
               <Route path="/locations" element={<LocationsPage />} />
               <Route path="/inventory" element={<InventoryPage />} />
+              <Route path="/transfers" element={<TransfersPage />} />
+              <Route path="/stocktakes" element={<StocktakesPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

@@ -11,6 +11,17 @@ import { errorHandler } from '../middleware/error-handler';
 import { parsePagination, buildPaginationResponse, paginate } from '../utils/pagination';
 import { parseSort } from '../utils/sort';
 import { exportToCsv, getCsvFilename } from '../utils/csv-export';
+import {
+  createPdf,
+  pdfToBuffer,
+  pdfResponseHeaders,
+  drawHeader,
+  drawTable,
+  drawFooters,
+  drawInfoBlock,
+  type PdfTableColumn,
+  type PdfTableRow,
+} from '../utils/pdf';
 
 const orderRepo = () => AppDataSource.getRepository(Order);
 const auditRepo = () => AppDataSource.getRepository(AuditLog);
@@ -194,6 +205,111 @@ app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
   });
 
   return c.json(result);
+});
+
+// GET /api/orders/:id/packing-slip — Packing slip PDF
+app.get('/:id/packing-slip', async (c) => {
+  const id = c.req.param('id');
+  const download = c.req.query('download') === 'true';
+
+  const order = await orderRepo().findOne({
+    where: { id },
+    relations: ['items', 'items.variant', 'items.variant.product'],
+  });
+  if (!order) throw new AppError(404, ErrorCode.NOT_FOUND, 'Order not found');
+
+  const doc = createPdf();
+  const title = 'Packing Slip';
+  const subtitle = `Order ${order.externalOrderId}`;
+  drawHeader(doc, title, subtitle);
+
+  // Info block
+  const leftX = doc.page.margins.left;
+  let y = doc.y;
+
+  y = drawInfoBlock(
+    doc,
+    [
+      { label: 'Order #:', value: order.externalOrderId },
+      { label: 'Date:', value: order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '—' },
+      { label: 'Status:', value: order.status },
+      { label: 'Source:', value: order.source || '—' },
+    ],
+    leftX,
+    y,
+    70,
+  );
+
+  // Customer info on the right
+  const rightX = leftX + 250;
+  doc
+    .fontSize(10)
+    .font('Helvetica-Bold')
+    .fillColor('#374151')
+    .text('Ship To:', rightX, doc.y - (4 * 16), { continued: false });
+  doc
+    .fontSize(9)
+    .font('Helvetica')
+    .fillColor('#111827');
+  const shipY = doc.y;
+  doc.text(order.customerName, rightX, shipY);
+  doc.text(order.customerEmail, rightX, doc.y);
+  if (order.shippingAddress) {
+    doc.text(order.shippingAddress, rightX, doc.y, { width: 240 });
+  }
+  doc.fillColor('#000000');
+  doc.x = leftX;
+
+  // Move past the info blocks
+  y = Math.max(doc.y, y) + 16;
+
+  // Items table
+  const columns: PdfTableColumn[] = [
+    { header: 'Product', width: 180 },
+    { header: 'Variant', width: 100 },
+    { header: 'SKU', width: 100 },
+    { header: 'Barcode', width: 90 },
+    { header: 'Qty', width: 40, align: 'center' },
+    { header: 'Unit Price', width: 70, align: 'right' },
+  ];
+
+  const tableRows: PdfTableRow[] = order.items.map((item) => ({
+    cells: [
+      item.variant?.product?.name || 'Unknown',
+      item.variant?.name || item.externalSku || 'N/A',
+      item.variant?.sku || item.externalSku || 'N/A',
+      item.variant?.barcode || '',
+      String(item.quantity),
+      `$${Number(item.unitPrice).toFixed(2)}`,
+    ],
+  }));
+
+  y = drawTable(doc, columns, tableRows, leftX, y);
+
+  // Total
+  doc.moveDown(0.5);
+  y = doc.y;
+  const totalWidth = columns.reduce((s, c) => s + c.width, 0);
+  doc
+    .moveTo(leftX + totalWidth - 110, y)
+    .lineTo(leftX + totalWidth, y)
+    .strokeColor('#d1d5db')
+    .lineWidth(0.5)
+    .stroke();
+  doc.moveDown(0.3);
+  doc
+    .fontSize(10)
+    .font('Helvetica-Bold')
+    .text(`Total: $${Number(order.totalAmount).toFixed(2)}`, leftX + totalWidth - 110, doc.y, {
+      align: 'right',
+      width: 110,
+    });
+
+  drawFooters(doc);
+
+  const buf = await pdfToBuffer(doc);
+  const filename = `packing-slip-${order.externalOrderId}.pdf`;
+  return new Response(new Uint8Array(buf), { headers: pdfResponseHeaders(filename, download) });
 });
 
 export default app;

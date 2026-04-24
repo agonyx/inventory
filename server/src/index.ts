@@ -19,6 +19,7 @@ import alertsRoute from './routes/alerts';
 import auditLogsRoute from './routes/auditLogs';
 import transfersRoute from './routes/transfers';
 import stocktakesRoute from './routes/stocktakes';
+import bulkRoute from './routes/bulk';
 
 // Public routes
 app.route('/webhooks', webhookRoute);
@@ -39,6 +40,7 @@ app.route('/api/alerts', alertsRoute);
 app.route('/api/audit-logs', auditLogsRoute);
 app.route('/api/transfers', transfersRoute);
 app.route('/api/stocktakes', stocktakesRoute);
+app.route('/api/bulk', bulkRoute);
 
 app.onError(errorHandler);
 const port = parseInt(process.env.PORT || '3002');
