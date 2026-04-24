@@ -9,6 +9,7 @@ import { Order } from './entities/Order';
 import { OrderItem } from './entities/OrderItem';
 import { StockAdjustment } from './entities/StockAdjustment';
 import { AuditLog } from './entities/AuditLog';
+import { User } from './entities/User';
 
 dotenv.config();
 
@@ -17,7 +18,7 @@ export const AppDataSource = new DataSource({
   url: process.env.DATABASE_URL,
   synchronize: process.env.NODE_ENV !== 'production',
   logging: false,
-  entities: [Product, ProductVariant, Location, InventoryLevel, Order, OrderItem, StockAdjustment, AuditLog],
+  entities: [Product, ProductVariant, Location, InventoryLevel, Order, OrderItem, StockAdjustment, AuditLog, User],
   migrations: [__dirname + '/migrations/**/*.ts'],
 });
 if (import.meta.main) {
