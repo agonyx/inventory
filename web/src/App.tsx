@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import ProductsPage from './pages/ProductsPage';
 import OrdersPage from './pages/OrdersPage';
 import PickListPage from './pages/PickListPage';
+import AuditLogsPage from './pages/AuditLogsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useAuth();
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/" element={<ProductsPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/pick-list" element={<PickListPage />} />
+            <Route path="/audit-logs" element={<AuditLogsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
