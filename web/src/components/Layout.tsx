@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Package, ClipboardList, AlertTriangle, Menu, X } from 'lucide-react';
+import { Package, ClipboardList, AlertTriangle, Menu, X, LogOut, User } from 'lucide-react';
+import { useAuth, useLogout } from '../hooks/useAuth';
 
 export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: user } = useAuth();
+  const logout = useLogout();
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -35,6 +38,21 @@ export default function Layout() {
               <AlertTriangle size={16} /> Pick List
             </NavLink>
           </nav>
+
+          {/* User info and logout */}
+          {user && (
+            <div className="hidden md:flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
+              <span className="text-sm text-gray-600 flex items-center gap-1">
+                <User size={14} /> {user.name}
+              </span>
+              <button
+                onClick={() => logout.mutate()}
+                className="text-sm text-gray-500 hover:text-red-600 flex items-center gap-1 transition"
+              >
+                <LogOut size={14} /> Logout
+              </button>
+            </div>
+          )}
 
           {/* Mobile hamburger button */}
           <button
