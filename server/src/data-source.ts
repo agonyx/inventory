@@ -15,7 +15,7 @@ dotenv.config();
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
-  synchronize: true,
+  synchronize: process.env.NODE_ENV !== 'production',
   logging: false,
   entities: [Product, ProductVariant, Location, InventoryLevel, Order, OrderItem, StockAdjustment, AuditLog],
   migrations: [__dirname + '/migrations/**/*.ts'],

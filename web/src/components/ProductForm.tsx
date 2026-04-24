@@ -131,7 +131,7 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
   const isSubmitting = createProduct.isPending || updateProduct.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -139,9 +139,9 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+      <div className="relative bg-white rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-2xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto sm:mx-4">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h3 className="text-lg font-semibold text-gray-900">
             {isEdit ? 'Edit Product' : 'New Product'}
           </h3>
@@ -154,14 +154,14 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-5">
           {error && (
             <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Product Name <span className="text-red-500">*</span>
@@ -189,7 +189,7 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Category
@@ -231,7 +231,7 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
             />
           </div>
 
-          <div className="w-48">
+          <div className="w-full sm:w-48">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Low Stock Threshold
             </label>
@@ -268,9 +268,9 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
                 {variants.map((variant, idx) => (
                   <div
                     key={idx}
-                    className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg"
+                    className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2 p-3 bg-gray-50 rounded-lg"
                   >
-                    <div className="flex-1 grid grid-cols-2 gap-2">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
                         type="text"
                         value={variant.name}
@@ -290,23 +290,25 @@ export default function ProductForm({ product, onClose }: ProductFormProps) {
                         placeholder="SKU"
                       />
                     </div>
-                    <input
-                      type="text"
-                      value={variant.description}
-                      onChange={(e) =>
-                        updateVariant(idx, 'description', e.target.value)
-                      }
-                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Description (optional)"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeVariantRow(idx)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition mt-0.5"
-                      title="Remove variant"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={variant.description}
+                        onChange={(e) =>
+                          updateVariant(idx, 'description', e.target.value)
+                        }
+                        className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Description (optional)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeVariantRow(idx)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition flex-shrink-0"
+                        title="Remove variant"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -76,7 +76,6 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
         throw new Error(`Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${available}`);
       }
 
-      inventoryLevel.quantity -= item.quantity;
       inventoryLevel.reservedQuantity += item.quantity;
       await manager.save(inventoryLevel);
 
@@ -94,7 +93,7 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
         action: AuditAction.CREATE_ORDER,
         entityType: 'inventory',
         entityId: inventoryLevel.id,
-        oldValues: { quantity: inventoryLevel.quantity + item.quantity, reservedQuantity: inventoryLevel.reservedQuantity - item.quantity },
+        oldValues: { quantity: inventoryLevel.quantity, reservedQuantity: inventoryLevel.reservedQuantity - item.quantity },
         newValues: { quantity: inventoryLevel.quantity, reservedQuantity: inventoryLevel.reservedQuantity },
         notes: `Order ${payload.externalOrderId} reserved ${item.quantity} of SKU ${item.sku}`,
       });

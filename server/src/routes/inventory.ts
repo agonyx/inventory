@@ -46,6 +46,10 @@ app.post('/:id/adjust', zValidator('json', adjustSchema), async (c) => {
     return c.json({ error: 'Cannot reduce stock below zero' }, 400);
   }
 
+  if (newQty < level.reservedQuantity) {
+    return c.json({ error: 'Cannot reduce stock below reserved quantity' }, 400);
+  }
+
   level.quantity = newQty;
   await inventoryRepo().save(level);
 

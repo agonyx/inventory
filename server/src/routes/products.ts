@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+import { In } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { Product } from '../entities/Product';
 import { ProductVariant } from '../entities/ProductVariant';
@@ -113,6 +114,15 @@ app.patch('/:id', zValidator('json', createSchema.partial()), async (c) => {
 // DELETE /api/products/:id
 app.delete('/:id', async (c) => {
   const id = c.req.param('id');
+  const product = await productRepo().findOne({
+    where: { id },
+    relations: ['variants'],
+  });
+  if (!product) return c.json({ error: 'Not found' }, 404);
+  if (product.variants.length > 0) {
+    const variantIds = product.variants.map((v) => v.id);
+    await inventoryRepo().delete({ variantId: In(variantIds) });
+  }
   const result = await productRepo().delete(id);
   if (result.affected === 0) return c.json({ error: 'Not found' }, 404);
   return c.json({ success: true });

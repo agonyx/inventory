@@ -26,4 +26,21 @@ app.post('/', zValidator('json', createSchema), async (c) => {
   return c.json(location, 201);
 });
 
+app.patch('/:id', zValidator('json', createSchema.partial()), async (c) => {
+  const id = c.req.param('id');
+  const data = c.req.valid('json');
+  const location = await locationRepo().findOne({ where: { id } });
+  if (!location) return c.json({ error: 'Not found' }, 404);
+  locationRepo().merge(location, data);
+  await locationRepo().save(location);
+  return c.json(location);
+});
+
+app.delete('/:id', async (c) => {
+  const id = c.req.param('id');
+  const result = await locationRepo().delete(id);
+  if (result.affected === 0) return c.json({ error: 'Not found' }, 404);
+  return c.json({ success: true });
+});
+
 export default app;

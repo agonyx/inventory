@@ -22,7 +22,8 @@ export default function PickListTable() {
   if (items) {
     for (const item of items) {
       if (!grouped[item.locationName]) grouped[item.locationName] = [];
-      grouped[item.locationName].push(item);
+      const arr = grouped[item.locationName];
+      if (arr) arr.push(item);
     }
   }
 
@@ -89,7 +90,7 @@ export default function PickListTable() {
       ) : (
         <div className="space-y-3">
           {locations.map((loc) => {
-            const locItems = grouped[loc];
+            const locItems = grouped[loc] ?? [];
             const isCollapsed = !!collapsed[loc];
 
             return (
@@ -109,63 +110,104 @@ export default function PickListTable() {
                 </button>
 
                 {!isCollapsed && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white">
-                          <th className="px-5 py-2">Product</th>
-                          <th className="px-5 py-2">Variant</th>
-                          <th className="px-5 py-2">SKU</th>
-                          <th className="px-5 py-2 text-center">Qty</th>
-                          <th className="px-5 py-2">Customer</th>
-                          <th className="px-5 py-2">Order</th>
-                          <th className="px-5 py-2 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {locItems.map((item) => (
-                          <tr key={`${item.orderId}-${item.sku}`} className="hover:bg-blue-50/50 transition-colors">
-                            <td className="px-5 py-3 font-medium text-gray-900 text-base">
-                              {item.productName}
-                            </td>
-                            <td className="px-5 py-3 text-gray-600">
-                              {item.variantName}
-                            </td>
-                            <td className="px-5 py-3 text-gray-500 font-mono text-xs">
-                              {item.sku}
-                            </td>
-                            <td className="px-5 py-3 text-center">
-                              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-base">
-                                {item.quantity}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3 text-gray-700">{item.customerName}</td>
-                            <td className="px-5 py-3 text-gray-400 font-mono text-xs">
-                              {item.externalOrderId}
-                            </td>
-                            <td className="px-5 py-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => handleMarkPacked(item.orderId)}
-                                  disabled={updateStatus.isPending}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition disabled:opacity-50"
-                                >
-                                  <Box size={12} /> Packed
-                                </button>
-                                <button
-                                  onClick={() => handleMarkShipped(item.orderId)}
-                                  disabled={updateStatus.isPending}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition disabled:opacity-50"
-                                >
-                                  <Truck size={12} /> Shipped
-                                </button>
-                              </div>
-                            </td>
+                  <>
+                    {/* Desktop table */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white">
+                            <th className="px-5 py-2">Product</th>
+                            <th className="px-5 py-2">Variant</th>
+                            <th className="px-5 py-2">SKU</th>
+                            <th className="px-5 py-2 text-center">Qty</th>
+                            <th className="px-5 py-2">Customer</th>
+                            <th className="px-5 py-2">Order</th>
+                            <th className="px-5 py-2 text-right">Action</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {locItems.map((item) => (
+                            <tr key={`${item.orderId}-${item.sku}`} className="hover:bg-blue-50/50 transition-colors">
+                              <td className="px-5 py-3 font-medium text-gray-900 text-base">
+                                {item.productName}
+                              </td>
+                              <td className="px-5 py-3 text-gray-600">
+                                {item.variantName}
+                              </td>
+                              <td className="px-5 py-3 text-gray-500 font-mono text-xs">
+                                {item.sku}
+                              </td>
+                              <td className="px-5 py-3 text-center">
+                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-base">
+                                  {item.quantity}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 text-gray-700">{item.customerName}</td>
+                              <td className="px-5 py-3 text-gray-400 font-mono text-xs">
+                                {item.externalOrderId}
+                              </td>
+                              <td className="px-5 py-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => handleMarkPacked(item.orderId)}
+                                    disabled={updateStatus.isPending}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition disabled:opacity-50"
+                                  >
+                                    <Box size={12} /> Packed
+                                  </button>
+                                  <button
+                                    onClick={() => handleMarkShipped(item.orderId)}
+                                    disabled={updateStatus.isPending}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition disabled:opacity-50"
+                                  >
+                                    <Truck size={12} /> Shipped
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile card layout */}
+                    <div className="md:hidden divide-y divide-gray-100">
+                      {locItems.map((item) => (
+                        <div key={`${item.orderId}-${item.sku}`} className="px-4 py-3 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 text-sm truncate">{item.productName}</p>
+                              <p className="text-xs text-gray-500">{item.variantName} · <span className="font-mono">{item.sku}</span></p>
+                            </div>
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-sm flex-shrink-0">
+                              {item.quantity}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="text-gray-500">
+                              <span className="text-gray-700">{item.customerName}</span> · <span className="font-mono">{item.externalOrderId}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleMarkPacked(item.orderId)}
+                              disabled={updateStatus.isPending}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition disabled:opacity-50"
+                            >
+                              <Box size={12} /> Packed
+                            </button>
+                            <button
+                              onClick={() => handleMarkShipped(item.orderId)}
+                              disabled={updateStatus.isPending}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition disabled:opacity-50"
+                            >
+                              <Truck size={12} /> Shipped
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             );

@@ -62,8 +62,8 @@ app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
         level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
       } else if (status === OrderStatus.SHIPPED) {
         // Unreserve and deduct from actual stock
-        level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
         level.quantity = Math.max(0, level.quantity - item.quantity);
+        level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
       } else if (status === OrderStatus.CANCELLED) {
         // Return reserved back to available
         level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);

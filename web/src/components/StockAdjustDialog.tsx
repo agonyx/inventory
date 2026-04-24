@@ -73,12 +73,12 @@ export default function StockAdjustDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm md:backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+      <div className="relative bg-white rounded-none md:rounded-xl shadow-2xl w-full max-w-full md:max-w-md mx-0 md:mx-4 min-h-screen md:min-h-0">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">
@@ -105,7 +105,7 @@ export default function StockAdjustDialog({
             <span className="font-medium">Location:</span>{' '}
             {level.location?.name || 'Unknown'}
           </p>
-          <div className="flex gap-6 mt-2 text-sm">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 mt-2 text-sm">
             <div>
               <span className="text-gray-500">On Hand:</span>{' '}
               <span className="font-semibold">{level.quantity}</span>

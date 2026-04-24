@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -76,7 +76,7 @@ export default function OrderList() {
     <div className="space-y-4">
       {/* Low stock alerts */}
       {alerts.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 md:p-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={16} className="text-red-500" />
             <span className="font-semibold text-red-700 text-sm">
@@ -85,7 +85,7 @@ export default function OrderList() {
           </div>
           <div className="space-y-1">
             {alerts.slice(0, 5).map((a) => (
-              <div key={`${a.variantId}-${a.locationId}`} className="flex items-center justify-between text-sm text-red-700">
+              <div key={`${a.variantId}-${a.locationId}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-red-700 gap-0.5 sm:gap-0">
                 <span>
                   <span className="font-medium">{a.productName}</span>
                   {' > '}{a.variantName} ({a.sku}) @ {a.locationName}
@@ -102,13 +102,13 @@ export default function OrderList() {
         </div>
       )}
 
-      {/* Status tabs */}
-      <div className="flex gap-1 border-b border-gray-200 pb-0">
+      {/* Status tabs - scrollable on mobile */}
+      <div className="flex gap-0.5 sm:gap-1 border-b border-gray-200 pb-0 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-3 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+            className={`px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-medium capitalize transition-colors border-b-2 -mb-px whitespace-nowrap ${
               activeTab === tab
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -124,7 +124,7 @@ export default function OrderList() {
         ))}
       </div>
 
-      {/* Orders table */}
+      {/* Orders content */}
       {!orders?.length ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 py-16 text-center">
           <ClipboardList className="mx-auto text-gray-300" size={48} />
@@ -136,41 +136,157 @@ export default function OrderList() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <th className="w-8 px-4 py-3" />
-                  <th className="px-4 py-3">Order ID</th>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Source</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3 text-center">Items</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {orders.map((order) => {
-                  const isExpanded = expandedId === order.id;
+        <>
+          {/* Mobile card layout */}
+          <div className="md:hidden space-y-3">
+            {orders.map((order) => {
+              const isExpanded = expandedId === order.id;
+              const canAdvance = order.status !== 'shipped' && order.status !== 'cancelled';
+              const nextStatus: Record<string, string> = {
+                pending: 'confirmed',
+                confirmed: 'packed',
+                packed: 'shipped',
+                shipped: 'shipped',
+                cancelled: 'cancelled',
+              };
+              const nextLabel: Record<string, string> = {
+                pending: 'Confirm',
+                confirmed: 'Pack',
+                packed: 'Ship',
+                shipped: 'Done',
+                cancelled: 'Cancelled',
+              };
+              const next = nextStatus[order.status];
 
-                  return (
-                    <OrderRow
-                      key={order.id}
-                      order={order}
-                      isExpanded={isExpanded}
-                      onToggle={() => toggleExpand(order.id)}
-                      onStatusChange={handleStatusChange}
-                      isUpdating={updateStatus.isPending}
-                    />
-                  );
-                })}
-              </tbody>
-            </table>
+              return (
+                <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                  <button
+                    onClick={() => toggleExpand(order.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {isExpanded ? (
+                          <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+                        ) : (
+                          <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{order.customerName}</p>
+                          <p className="text-xs text-gray-400 truncate">{order.customerEmail}</p>
+                        </div>
+                      </div>
+                      <StatusBadge status={order.status} />
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 ml-6 text-sm">
+                      <span className="text-gray-500 font-mono text-xs">{order.externalOrderId}</span>
+                      <span className="text-gray-700 font-medium">${Number(order.totalAmount).toFixed(2)}</span>
+                      <span className="text-gray-400">{order.items.length} item{order.items.length !== 1 ? 's' : ''}</span>
+                    </div>
+                  </button>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-1 mt-3 ml-6">
+                    {canAdvance && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(order.id, next);
+                        }}
+                        disabled={updateStatus.isPending}
+                        className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      >
+                        {nextLabel[order.status]}
+                      </button>
+                    )}
+                    {order.status !== 'cancelled' && order.status !== 'shipped' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(order.id, 'cancelled');
+                        }}
+                        disabled={updateStatus.isPending}
+                        className="px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Expanded items (mobile) */}
+                  {isExpanded && (
+                    <div className="mt-3 ml-6 bg-gray-50 rounded-lg p-3">
+                      {order.items.length === 0 ? (
+                        <p className="text-gray-400 text-sm italic">No items.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {order.items.map((item) => (
+                            <div key={item.id} className="bg-white rounded-md p-2.5 border border-gray-100">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <p className="font-medium text-gray-700 text-sm">{item.variant?.product?.name || 'Unknown'}</p>
+                                  <p className="text-xs text-gray-500">{item.variant?.name || item.externalSku || 'N/A'}</p>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <p className="text-sm font-medium text-gray-700">${Number(item.unitPrice).toFixed(2)}</p>
+                                  <p className="text-xs text-gray-400">× {item.quantity}</p>
+                                </div>
+                              </div>
+                              <p className="text-xs text-gray-400 font-mono mt-0.5">{item.variant?.sku || item.externalSku || 'N/A'}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {order.shippingAddress && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <span className="text-xs font-medium text-gray-400 uppercase">Shipping Address</span>
+                          <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-line">{order.shippingAddress}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-8 px-4 py-3" />
+                    <th className="px-4 py-3">Order ID</th>
+                    <th className="px-4 py-3">Customer</th>
+                    <th className="px-4 py-3">Source</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3 text-center">Items</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {orders.map((order) => {
+                    const isExpanded = expandedId === order.id;
+
+                    return (
+                      <OrderRow
+                        key={order.id}
+                        order={order}
+                        isExpanded={isExpanded}
+                        onToggle={() => toggleExpand(order.id)}
+                        onStatusChange={handleStatusChange}
+                        isUpdating={updateStatus.isPending}
+                      />
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
