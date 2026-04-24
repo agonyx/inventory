@@ -9,6 +9,10 @@
     "db:sync": "bun run src/data-source.ts -- sync",
     "db:drop": "bun run src/data-source.ts -- drop",
     "db:seed:admin": "bun run src/scripts/seed-admin.ts",
+    "db:migrate": "typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
+    "db:migrate:revert": "typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
+    "db:migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/data-source.ts",
+    "db:migration:create": "typeorm-ts-node-commonjs migration:create",
     "test": "for f in tests/*.test.ts; do echo \"--- $f ---\"; bun test \"$f\" || exit 1; done"
   },
   "dependencies": {
@@ -28,6 +32,7 @@
     "@types/bun": "latest",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.11.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.4.0"
   }
 }
