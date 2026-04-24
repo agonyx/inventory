@@ -6,6 +6,7 @@ const app = new Hono();
 app.use(cors({ origin: ['http://localhost:5174', 'http://localhost:5173'] }));
 
 import webhookRoute from './routes/webhooks';
+import { errorHandler } from './middleware/error-handler';
 import authMiddleware from './middleware/auth';
 import productsRoute from './routes/products';
 import inventoryRoute from './routes/inventory';
@@ -34,12 +35,7 @@ app.route('/api/orders', ordersRoute);
 app.route('/api/pick-list', pickListRoute);
 app.route('/api/alerts', alertsRoute);
 
-app.onError((err, c) => {
-  console.error('Request error:', err);
-  const message = err instanceof Error ? err.message : 'Internal Server Error';
-  const status = message.includes('already exists') ? 409 : message.includes('not found') ? 404 : message.includes('Cannot reduce') ? 400 : 500;
-  return c.json({ error: message }, status as 400 | 404 | 409 | 500);
-});
+app.onError(errorHandler);
 const port = parseInt(process.env.PORT || '3002');
 AppDataSource.initialize().then(async () => {
   console.log('Database connected');
