@@ -3,7 +3,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { AppDataSource } from './data-source';
 const app = new Hono();
-app.use(cors({ origin: ['http://localhost:5174', 'http://localhost:5173'] }));
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:5174'];
+app.use(cors({ origin: allowedOrigins }));
 
 import webhookRoute from './routes/webhooks';
 import { errorHandler } from './middleware/error-handler';
