@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
+import { createHmac } from 'crypto';
 import { initTestDb, destroyTestDb, cleanTables, seed } from './setup';
 import app from '../src/routes/webhooks';
 import { AppDataSource } from '../src/data-source';
@@ -141,5 +142,130 @@ describe('Webhooks API', () => {
       }),
     });
     expect(res.status).toBe(400);
+  });
+
+  test('POST /orders rejects missing signature when WEBHOOK_SECRET is set', async () => {
+    const originalSecret = process.env.WEBHOOK_SECRET;
+    process.env.WEBHOOK_SECRET = 'whsec_test_secret_2026';
+
+    try {
+      const res = await app.request('/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          externalOrderId: 'SIG-001',
+          customerName: 'Test',
+          customerEmail: 'test@example.com',
+          totalAmount: 10,
+          source: 'test',
+          items: [{ sku: 'TEST-001', quantity: 1, unitPrice: 10 }],
+        }),
+      });
+
+      expect(res.status).toBe(401);
+      const body = await res.json();
+      expect(body.error.code).toBe('UNAUTHORIZED');
+      expect(body.error.message).toContain('Missing');
+    } finally {
+      process.env.WEBHOOK_SECRET = originalSecret;
+    }
+  });
+
+  test('POST /orders rejects invalid signature when WEBHOOK_SECRET is set', async () => {
+    const originalSecret = process.env.WEBHOOK_SECRET;
+    process.env.WEBHOOK_SECRET = 'whsec_test_secret_2026';
+
+    try {
+      const payload = JSON.stringify({
+        externalOrderId: 'SIG-002',
+        customerName: 'Test',
+        customerEmail: 'test@example.com',
+        totalAmount: 10,
+        source: 'test',
+        items: [{ sku: 'TEST-001', quantity: 1, unitPrice: 10 }],
+      });
+
+      const res = await app.request('/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Signature': 'sha256=invalid_signature',
+        },
+        body: payload,
+      });
+
+      expect(res.status).toBe(401);
+      const body = await res.json();
+      expect(body.error.code).toBe('UNAUTHORIZED');
+      expect(body.error.message).toContain('Invalid');
+    } finally {
+      process.env.WEBHOOK_SECRET = originalSecret;
+    }
+  });
+
+  test('POST /orders accepts valid signature when WEBHOOK_SECRET is set', async () => {
+    const originalSecret = process.env.WEBHOOK_SECRET;
+    process.env.WEBHOOK_SECRET = 'whsec_test_secret_2026';
+
+    try {
+      await seed.location({ name: 'SIG-Loc' });
+      const { product, variants } = await seed.product({ sku: 'SIG-003' });
+      const payload = JSON.stringify({
+        externalOrderId: 'SIG-003',
+        customerName: 'Test',
+        customerEmail: 'test@example.com',
+        totalAmount: 10,
+        source: 'test',
+        items: [{ sku: 'SIG-003-STD', quantity: 1, unitPrice: 10 }],
+      });
+
+      const signature = 'sha256=' + createHmac('sha256', 'whsec_test_secret_2026').update(payload).digest('hex');
+
+      const res = await app.request('/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Signature': signature,
+        },
+        body: payload,
+      });
+
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+    } finally {
+      process.env.WEBHOOK_SECRET = originalSecret;
+    }
+  });
+
+  test('POST /orders skips signature verification when WEBHOOK_SECRET is not set', async () => {
+    const originalSecret = process.env.WEBHOOK_SECRET;
+    process.env.WEBHOOK_SECRET = '';
+
+    try {
+      await seed.location({ name: 'NOSIG-Loc' });
+      const { product, variants } = await seed.product({ sku: 'NOSIG-001' });
+      const payload = JSON.stringify({
+        externalOrderId: 'NOSIG-001',
+        customerName: 'Test',
+        customerEmail: 'test@example.com',
+        totalAmount: 10,
+        source: 'test',
+        items: [{ sku: 'NOSIG-001-STD', quantity: 1, unitPrice: 10 }],
+      });
+
+      // No X-Webhook-Signature header — should be accepted when no secret configured
+      const res = await app.request('/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      });
+
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+    } finally {
+      process.env.WEBHOOK_SECRET = originalSecret;
+    }
   });
 });
