@@ -1,11 +1,11 @@
 #!/bin/sh
 set -e
 
-echo "Running database migrations..."
-npx typeorm-ts-node-commonjs migration:run -d src/data-source.ts
+echo "Running database setup..."
+npx tsx src/scripts/setup-db.ts
 
 echo "Seeding admin user if needed..."
-bun run src/scripts/seed-admin.ts || true
+npx tsx src/scripts/seed-admin.ts 2>/dev/null || echo "Admin seed skipped"
 
 echo "Starting server..."
 exec npx tsx src/index.ts
