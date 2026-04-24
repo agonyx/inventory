@@ -7,7 +7,7 @@ app.use(cors({ origin: ['http://localhost:5174', 'http://localhost:5173'] }));
 
 import webhookRoute from './routes/webhooks';
 import { errorHandler } from './middleware/error-handler';
-import authMiddleware from './middleware/auth';
+import { jwtAuth } from './middleware/jwt-auth';
 import productsRoute from './routes/products';
 import inventoryRoute from './routes/inventory';
 import locationsRoute from './routes/locations';
@@ -24,13 +24,7 @@ app.get('/health', (c) => c.json({ status: 'ok' }));
 app.route('/auth', authRoute);
 
 // Auth middleware for /api/* routes only
-app.use('/api/*', async (c, next) => {
-  const token = c.req.header('Authorization')?.replace('Bearer ', '');
-  if (!token || token !== process.env.AUTH_TOKEN) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  await next();
-});
+app.use('/api/*', jwtAuth);
 
 app.route('/api/products', productsRoute);
 app.route('/api/inventory', inventoryRoute);
