@@ -8,6 +8,7 @@
     "start": "bun dist/index.js",
     "db:sync": "bun run src/data-source.ts -- sync",
     "db:drop": "bun run src/data-source.ts -- drop",
+    "db:seed:admin": "bun run src/scripts/seed-admin.ts",
     "test": "for f in tests/*.test.ts; do echo \"--- $f ---\"; bun test \"$f\" || exit 1; done"
   },
   "dependencies": {
