@@ -16,6 +16,7 @@ import ordersRoute from './routes/orders';
 import pickListRoute from './routes/pickList';
 import authRoute from './routes/auth';
 import alertsRoute from './routes/alerts';
+import auditLogsRoute from './routes/auditLogs';
 
 // Public routes
 app.route('/webhooks', webhookRoute);
@@ -33,6 +34,7 @@ app.route('/api/locations', locationsRoute);
 app.route('/api/orders', ordersRoute);
 app.route('/api/pick-list', pickListRoute);
 app.route('/api/alerts', alertsRoute);
+app.route('/api/audit-logs', auditLogsRoute);
 
 app.onError(errorHandler);
 const port = parseInt(process.env.PORT || '3002');
