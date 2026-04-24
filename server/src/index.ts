@@ -13,11 +13,15 @@ import inventoryRoute from './routes/inventory';
 import locationsRoute from './routes/locations';
 import ordersRoute from './routes/orders';
 import pickListRoute from './routes/pickList';
+import authRoute from './routes/auth';
 import alertsRoute from './routes/alerts';
 
 // Public routes
 app.route('/webhooks', webhookRoute);
 app.get('/health', (c) => c.json({ status: 'ok' }));
+
+// Auth routes (no JWT required — not under /api/*)
+app.route('/auth', authRoute);
 
 // Auth middleware for /api/* routes only
 app.use('/api/*', async (c, next) => {
