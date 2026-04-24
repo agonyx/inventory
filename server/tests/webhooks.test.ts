@@ -79,7 +79,9 @@ describe('Webhooks API', () => {
       body: JSON.stringify(payload),
     });
     expect(second.status).toBe(409);
-    expect((await second.json()).error).toContain('already exists');
+    const secondBody = await second.json();
+    expect(secondBody.error.message).toContain('already exists');
+    expect(secondBody.error.code).toBe('CONFLICT');
   });
 
   test('POST /orders rejects unknown SKU (404)', async () => {
@@ -96,7 +98,9 @@ describe('Webhooks API', () => {
       }),
     });
     expect(res.status).toBe(404);
-    expect((await res.json()).error).toContain('not found');
+    const resBody = await res.json();
+    expect(resBody.error.message).toContain('not found');
+    expect(resBody.error.code).toBe('NOT_FOUND');
   });
 
   test('POST /orders rejects insufficient stock (400)', async () => {
@@ -122,7 +126,9 @@ describe('Webhooks API', () => {
       }),
     });
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toContain('Insufficient');
+    const resBody = await res.json();
+    expect(resBody.error.message).toContain('Insufficient');
+    expect(resBody.error.code).toBe('INSUFFICIENT_STOCK');
   });
 
   test('POST /orders validates input — missing required fields returns 400', async () => {

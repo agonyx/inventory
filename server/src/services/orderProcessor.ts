@@ -4,6 +4,7 @@ import { OrderItem } from '../entities/OrderItem';
 import { InventoryLevel } from '../entities/InventoryLevel';
 import { ProductVariant } from '../entities/ProductVariant';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
+import { AppError, ErrorCode } from '../errors/app-error';
 
 export interface WebhookPayload {
   externalOrderId: string;
@@ -23,7 +24,7 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
   return await AppDataSource.transaction(async (manager) => {
     const existing = await manager.findOne(Order, { where: { externalOrderId: payload.externalOrderId } });
     if (existing) {
-      throw new Error(`Order ${payload.externalOrderId} already exists`);
+      throw new AppError(409, ErrorCode.CONFLICT, `Order ${payload.externalOrderId} already exists`);
     }
 
     const order = manager.create(Order, {
@@ -41,7 +42,7 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
     for (const item of payload.items) {
       const variant = await manager.findOne(ProductVariant, { where: { sku: item.sku } });
       if (!variant) {
-        throw new Error(`Variant with SKU ${item.sku} not found`);
+        throw new AppError(404, ErrorCode.NOT_FOUND, `Variant with SKU ${item.sku} not found`);
       }
 
       // Query inventory level directly — find one with sufficient stock
@@ -50,7 +51,7 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
         order: { quantity: 'DESC' },
       });
       if (inventoryLevels.length === 0) {
-        throw new Error(`No inventory found for SKU ${item.sku}`);
+        throw new AppError(404, ErrorCode.NOT_FOUND, `No inventory found for SKU ${item.sku}`);
       }
 
       // Use the location with the most stock
@@ -65,7 +66,7 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
           totalAvailable += il.quantity - il.reservedQuantity;
         }
         if (totalAvailable < item.quantity) {
-          throw new Error(`Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${totalAvailable}`);
+          throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${totalAvailable}`);
         }
         // Deduct from first location only (simple allocation)
         inventoryLevel = inventoryLevels[0];
@@ -73,7 +74,7 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
 
       const available = inventoryLevel.quantity - inventoryLevel.reservedQuantity;
       if (available < item.quantity) {
-        throw new Error(`Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${available}`);
+        throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${available}`);
       }
 
       inventoryLevel.reservedQuantity += item.quantity;
