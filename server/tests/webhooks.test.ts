@@ -11,23 +11,33 @@ beforeAll(initTestDb);
 afterAll(destroyTestDb);
 beforeEach(cleanTables);
 
+/** Sign a webhook payload with the current WEBHOOK_SECRET (or no-op if unset). */
+function signPayload(body: string): Record<string, string> {
+  const secret = process.env.WEBHOOK_SECRET;
+  if (!secret) return {};
+  const sig = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
+  return { 'X-Webhook-Signature': sig };
+}
+
 describe('Webhooks API', () => {
   test('POST /orders creates order and reserves stock', async () => {
     const loc = await seed.location({ name: 'WH-Webhook' });
     const { product, variants } = await seed.product({ name: 'Webhook Product', sku: 'WH-001' });
     const variant = variants[0];
 
+    const bodyStr = JSON.stringify({
+      externalOrderId: 'WH-EXT-001',
+      customerName: 'Alice Smith',
+      customerEmail: 'alice@example.com',
+      totalAmount: 59.97,
+      source: 'shopify',
+      items: [{ sku: 'WH-001-STD', quantity: 3, unitPrice: 19.99 }],
+    });
+
     const res = await app.request('/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        externalOrderId: 'WH-EXT-001',
-        customerName: 'Alice Smith',
-        customerEmail: 'alice@example.com',
-        totalAmount: 59.97,
-        source: 'shopify',
-        items: [{ sku: 'WH-001-STD', quantity: 3, unitPrice: 19.99 }],
-      }),
+      headers: { 'Content-Type': 'application/json', ...signPayload(bodyStr) },
+      body: bodyStr,
     });
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -66,18 +76,19 @@ describe('Webhooks API', () => {
       source: 'woocommerce',
       items: [{ sku: 'DUP-001-STD', quantity: 1, unitPrice: 10 }],
     };
+    const bodyStr = JSON.stringify(payload);
 
     const first = await app.request('/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json', ...signPayload(bodyStr) },
+      body: bodyStr,
     });
     expect(first.status).toBe(201);
 
     const second = await app.request('/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json', ...signPayload(bodyStr) },
+      body: bodyStr,
     });
     expect(second.status).toBe(409);
     const secondBody = await second.json();
@@ -86,17 +97,18 @@ describe('Webhooks API', () => {
   });
 
   test('POST /orders rejects unknown SKU (404)', async () => {
+    const bodyStr = JSON.stringify({
+      externalOrderId: 'MISSING-SKU-001',
+      customerName: 'Charlie',
+      customerEmail: 'charlie@example.com',
+      totalAmount: 10,
+      source: 'test',
+      items: [{ sku: 'NONEXISTENT-SKU', quantity: 1, unitPrice: 10 }],
+    });
     const res = await app.request('/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        externalOrderId: 'MISSING-SKU-001',
-        customerName: 'Charlie',
-        customerEmail: 'charlie@example.com',
-        totalAmount: 10,
-        source: 'test',
-        items: [{ sku: 'NONEXISTENT-SKU', quantity: 1, unitPrice: 10 }],
-      }),
+      headers: { 'Content-Type': 'application/json', ...signPayload(bodyStr) },
+      body: bodyStr,
     });
     expect(res.status).toBe(404);
     const resBody = await res.json();
@@ -114,17 +126,18 @@ describe('Webhooks API', () => {
     const levels = await AppDataSource.getRepository(InventoryLevel).find({ where: { variantId: variant.id } });
     await AppDataSource.getRepository(InventoryLevel).update(levels[0].id, { quantity: 2, reservedQuantity: 1 });
 
+    const bodyStr = JSON.stringify({
+      externalOrderId: 'LOW-STOCK-001',
+      customerName: 'Dave',
+      customerEmail: 'dave@example.com',
+      totalAmount: 30,
+      source: 'test',
+      items: [{ sku: 'LOW-001-STD', quantity: 5, unitPrice: 6 }],
+    });
     const res = await app.request('/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        externalOrderId: 'LOW-STOCK-001',
-        customerName: 'Dave',
-        customerEmail: 'dave@example.com',
-        totalAmount: 30,
-        source: 'test',
-        items: [{ sku: 'LOW-001-STD', quantity: 5, unitPrice: 6 }],
-      }),
+      headers: { 'Content-Type': 'application/json', ...signPayload(bodyStr) },
+      body: bodyStr,
     });
     expect(res.status).toBe(400);
     const resBody = await res.json();
@@ -133,13 +146,14 @@ describe('Webhooks API', () => {
   });
 
   test('POST /orders validates input — missing required fields returns 400', async () => {
+    const bodyStr = JSON.stringify({
+      externalOrderId: 'BAD-001',
+      // missing customerName, customerEmail, source, items
+    });
     const res = await app.request('/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        externalOrderId: 'BAD-001',
-        // missing customerName, customerEmail, source, items
-      }),
+      headers: { 'Content-Type': 'application/json', ...signPayload(bodyStr) },
+      body: bodyStr,
     });
     expect(res.status).toBe(400);
   });
