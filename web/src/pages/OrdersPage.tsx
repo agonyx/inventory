@@ -286,7 +286,7 @@ export default function OrdersPage() {
 
   const handleExportCsv = () => {
     const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
-    window.open(`/api/orders/export${qs}`, '_blank');
+    openAuthenticatedUrl(`/orders/export${qs}`);
   };
 
   // Combine filter values (flat filters plus date-range sub-keys) for FilterBar

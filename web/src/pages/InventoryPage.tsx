@@ -11,6 +11,7 @@ import StockAdjustDialog from '../components/StockAdjustDialog';
 import BulkAdjustModal from '../components/BulkAdjustModal';
 import { useInventory, type InventoryLevel } from '../hooks/useInventory';
 import { useLocations } from '../hooks/useLocations';
+import { openAuthenticatedUrl } from '../api/client';
 import type { Product, ProductVariant } from '../hooks/useProducts';
 
 const FILTER_CONFIG: FilterConfig[] = [
@@ -88,7 +89,7 @@ export default function InventoryPage() {
 
   const handleExportCsv = () => {
     const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
-    window.open(`/api/inventory/export${qs}`, '_blank');
+    openAuthenticatedUrl(`/inventory/export${qs}`);
   };
 
   // Get selected inventory levels for bulk adjust
