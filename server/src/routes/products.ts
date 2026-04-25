@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { In, Like, Not, IsNull } from 'typeorm';
+import { In, ILike, Not, IsNull } from 'typeorm';
 import { writeFile, unlink, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -69,8 +69,8 @@ app.get('/', async (c) => {
   const where: any = {};
 
   if (search) {
-    where.name = Like(`%${search}%`);
-    where.sku = Like(`%${search}%`);
+    where.name = ILike(`%${search}%`);
+    where.sku = ILike(`%${search}%`);
   }
   if (category) {
     where.category = category;
@@ -88,7 +88,7 @@ app.get('/', async (c) => {
   let barcodeProductIds: string[] | null = null;
   if (barcode) {
     const matchingVariants = await variantRepo().find({
-      where: { barcode: Like(`%${barcode}%`) },
+      where: { barcode: ILike(`%${barcode}%`) },
       select: ['productId'],
     });
     const uniqueIds = [...new Set(matchingVariants.map((v) => v.productId))];
@@ -137,13 +137,13 @@ app.get('/', async (c) => {
     let findWhere: any;
     if (search) {
       findWhere = [
-        { ...where, name: Like(`%${search}%`) },
-        { ...where, sku: Like(`%${search}%`) },
+        { ...where, name: ILike(`%${search}%`) },
+        { ...where, sku: ILike(`%${search}%`) },
       ];
       if (category) {
         findWhere = [
-          { name: Like(`%${search}%`), category },
-          { sku: Like(`%${search}%`), category },
+          { name: ILike(`%${search}%`), category },
+          { sku: ILike(`%${search}%`), category },
         ];
       }
     } else {
@@ -196,12 +196,12 @@ app.get('/export', async (c) => {
   if (search) {
     findWhere = category
       ? [
-          { name: Like(`%${search}%`), category },
-          { sku: Like(`%${search}%`), category },
+          { name: ILike(`%${search}%`), category },
+          { sku: ILike(`%${search}%`), category },
         ]
       : [
-          { name: Like(`%${search}%`) },
-          { sku: Like(`%${search}%`) },
+          { name: ILike(`%${search}%`) },
+          { sku: ILike(`%${search}%`) },
         ];
   } else {
     findWhere = category ? { category } : {};

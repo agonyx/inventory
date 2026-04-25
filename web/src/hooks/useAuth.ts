@@ -14,8 +14,13 @@ async function authFetch<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(body || `Request failed: ${res.status}`);
+    const errorText = await res.text();
+    let errorMessage = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed?.error?.message) errorMessage = parsed.error.message;
+    } catch {}
+    throw new Error(errorMessage || `Request failed: ${res.status}`);
   }
   return res.json();
 }

@@ -85,8 +85,13 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   }
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(body || `Request failed: ${res.status}`);
+    const errorText = await res.text();
+    let errorMessage = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed?.error?.message) errorMessage = parsed.error.message;
+    } catch {}
+    throw new Error(errorMessage || `Request failed: ${res.status}`);
   }
 
   return res.json();
@@ -103,8 +108,13 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
   });
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(body || `Upload failed: ${res.status}`);
+    const errorText = await res.text();
+    let errorMessage = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed?.error?.message) errorMessage = parsed.error.message;
+    } catch {}
+    throw new Error(errorMessage || `Upload failed: ${res.status}`);
   }
 
   return res.json();

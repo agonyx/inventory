@@ -12,6 +12,7 @@ import {
 } from '../hooks/useProducts';
 import { useBulkDeleteProducts } from '../hooks/useBulkOperations';
 import useUrlFilters from '../hooks/useUrlFilters';
+import { openAuthenticatedUrl } from '../api/client';
 import ProductTable from '../components/ProductTable';
 import ProductForm from '../components/ProductForm';
 import StockAdjustDialog from '../components/StockAdjustDialog';
@@ -32,11 +33,10 @@ const filterConfigs = [
     label: 'Category',
     type: 'select' as const,
     options: [
+      { value: 'Apparel', label: 'Apparel' },
       { value: 'Electronics', label: 'Electronics' },
-      { value: 'Clothing', label: 'Clothing' },
-      { value: 'Home', label: 'Home' },
-      { value: 'Toys', label: 'Toys' },
-      { value: 'Other', label: 'Other' },
+      { value: 'Home & Kitchen', label: 'Home & Kitchen' },
+      { value: 'Food & Beverage', label: 'Food & Beverage' },
     ],
   },
   {
@@ -199,7 +199,7 @@ export default function ProductsPage() {
 
   const handleExport = () => {
     const qs = new URLSearchParams(params).toString();
-    window.open('/api/products/export' + (qs ? '?' + qs : ''));
+    openAuthenticatedUrl('/products/export' + (qs ? '?' + qs : ''));
   };
 
   const exportParams = useMemo(() => {
