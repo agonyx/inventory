@@ -169,20 +169,65 @@ export default function Layout() {
             </div>
           )}
 
-          {/* Mobile hamburger button */}
+          {/* Mobile hamburger button + notifications */}
           <div className="flex items-center gap-2 lg:hidden">
-            <button
-              onClick={() => setNotifOpen((prev) => !prev)}
-              className="relative p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 rounded-md transition"
-              aria-label="Notifications"
-            >
-              <Bell size={18} />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotifOpen((prev) => !prev)}
+                className="relative p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 rounded-md transition"
+                aria-label="Notifications"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => markAllRead.mutate()}
+                        className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 && (
+                      <p className="text-sm text-gray-400 text-center py-6">No notifications</p>
+                    )}
+                    {notifications.map((n) => (
+                      <button
+                        key={n.id}
+                        onClick={() => {
+                          if (!n.read) markRead.mutate(n.id);
+                        }}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition ${
+                          !n.read ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {!n.read && <span className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 shrink-0" />}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm ${!n.read ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                              {n.title}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{formatDistanceToNow(n.createdAt)}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
             <button
               onClick={toggleDark}
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-md transition"

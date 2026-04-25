@@ -212,10 +212,13 @@ export default function ProductsPage() {
       {/* Barcode Search — prominent, scanner-friendly input */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
-          <ScanBarcode
-            size={16}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-500"
-          />
+          <button
+            onClick={() => setScannerOpen(true)}
+            className="absolute left-1.5 top-1/2 -translate-y-1/2 cursor-pointer hover:text-blue-600 hover:bg-blue-100 transition rounded-md p-0.5 text-blue-500"
+            title="Scan with camera"
+          >
+            <ScanBarcode size={16} />
+          </button>
           <input
             ref={barcodeInputRef}
             type="text"
@@ -227,22 +230,14 @@ export default function ProductsPage() {
               }
             }}
             onBlur={() => {
-              // Only trigger if different from current filter
               const trimmed = barcodeInput.trim();
               if (trimmed !== (filters.barcode || '')) {
                 handleBarcodeSearch(barcodeInput);
               }
             }}
             placeholder="Scan or type barcode..."
-            className="w-full pl-9 pr-10 py-2 text-sm border-2 border-blue-200 rounded-lg bg-blue-50/50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+            className="w-full pl-9 py-2 text-sm border-2 border-blue-200 rounded-lg bg-blue-50/50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
           />
-          <button
-            onClick={() => setScannerOpen(true)}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition"
-            title="Scan with camera"
-          >
-            <ScanBarcode size={16} />
-          </button>
         </div>
         {filters.barcode && (
           <button
