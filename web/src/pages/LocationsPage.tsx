@@ -25,6 +25,14 @@ interface LocationFormData {
   address: string;
 }
 
+function formatLocationType(type: string | null | undefined): string {
+  if (!type) return 'Unknown';
+  return type
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 const EMPTY_FORM: LocationFormData = { name: '', type: '', address: '' };
 
 export default function LocationsPage() {
@@ -188,8 +196,8 @@ export default function LocationsPage() {
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate">{loc.name}</p>
                     {loc.type && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize mt-1">
-                        {loc.type}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 mt-1">
+                        {formatLocationType(loc.type)}
                       </span>
                     )}
                     {loc.address && (
@@ -237,8 +245,8 @@ export default function LocationsPage() {
                       <td className="px-4 py-3 font-medium text-gray-900">{loc.name}</td>
                       <td className="px-4 py-3 text-gray-500">
                         {loc.type ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize">
-                            {loc.type}
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                            {formatLocationType(loc.type)}
                           </span>
                         ) : (
                           <span className="text-gray-300">&mdash;</span>
@@ -350,6 +358,7 @@ export default function LocationsPage() {
                 >
                   <option value="">Select type...</option>
                   <option value="warehouse">Warehouse</option>
+                  <option value="cold_storage">Cold Storage</option>
                   <option value="store">Store</option>
                   <option value="supplier">Supplier</option>
                   <option value="virtual">Virtual</option>
