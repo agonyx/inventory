@@ -95,49 +95,48 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-4 py-3 bg-black/80 text-white shrink-0">
+        <h3 className="text-lg font-semibold">Scan Barcode</h3>
+        <button
+          onClick={onClose}
+          className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Scan Barcode</h3>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
-          >
-            <X size={20} />
-          </button>
-        </div>
+      {/* Video fills remaining space */}
+      <div className="relative flex-1">
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          playsInline
+          muted
+        />
+        {!error && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-3/4 h-1/3 border-2 border-white/60 rounded-lg" />
+          </div>
+        )}
+        {error && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 text-center p-6">
+            <Camera size={32} className="text-gray-400 mb-3" />
+            <p className="text-sm text-gray-300">{error}</p>
+            <button
+              onClick={onClose}
+              className="mt-4 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
 
-        <div className="relative bg-black aspect-[4/3]">
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            playsInline
-            muted
-          />
-          {!error && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-3/4 h-1/3 border-2 border-white/60 rounded-lg" />
-            </div>
-          )}
-          {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 text-center p-6">
-              <Camera size={32} className="text-gray-400 mb-3" />
-              <p className="text-sm text-gray-300">{error}</p>
-              <button
-                onClick={onClose}
-                className="mt-4 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-              >
-                Close
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="px-4 py-3 text-center">
-          <p className="text-xs text-gray-500">Point your camera at a barcode to scan</p>
-        </div>
+      {/* Footer hint */}
+      <div className="px-4 py-3 text-center bg-black/80 text-white shrink-0">
+        <p className="text-xs text-gray-400">Point your camera at a barcode to scan</p>
       </div>
     </div>
   );

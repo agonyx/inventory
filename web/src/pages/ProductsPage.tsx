@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Trash2, X, ScanBarcode, Camera } from 'lucide-react';
+import { Download, Trash2, X, ScanBarcode } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useProducts,
@@ -234,8 +234,15 @@ export default function ProductsPage() {
               }
             }}
             placeholder="Scan or type barcode..."
-            className="w-full pl-9 pr-3 py-2 text-sm border-2 border-blue-200 rounded-lg bg-blue-50/50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+            className="w-full pl-9 pr-10 py-2 text-sm border-2 border-blue-200 rounded-lg bg-blue-50/50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
           />
+          <button
+            onClick={() => setScannerOpen(true)}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition"
+            title="Scan with camera"
+          >
+            <ScanBarcode size={16} />
+          </button>
         </div>
         {filters.barcode && (
           <button
@@ -250,12 +257,6 @@ export default function ProductsPage() {
             <X size={16} />
           </button>
         )}
-        <button
-          onClick={() => setScannerOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-        >
-          <Camera size={14} /> Scan barcode with camera
-        </button>
       </div>
 
       {/* Filter Bar */}
