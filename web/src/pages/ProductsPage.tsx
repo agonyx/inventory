@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Trash2, X, ScanBarcode } from 'lucide-react';
+import { Download, Trash2, X, ScanBarcode, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useProducts,
@@ -18,6 +18,7 @@ import StockAdjustDialog from '../components/StockAdjustDialog';
 import FilterBar from '../components/FilterBar';
 import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/ConfirmModal';
+import BarcodeScanner from '../components/BarcodeScanner';
 
 const filterConfigs = [
   {
@@ -98,6 +99,7 @@ export default function ProductsPage() {
   // Barcode search (local state, pushed as a URL filter param)
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const [barcodeInput, setBarcodeInput] = useState(filters.barcode || '');
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Sync barcode input when filters.barcode changes externally (e.g. reset)
   useEffect(() => {
@@ -107,6 +109,12 @@ export default function ProductsPage() {
   const handleBarcodeSearch = (value: string) => {
     const trimmed = value.trim();
     setFilter('barcode', trimmed);
+  };
+
+  const handleCameraScan = (code: string) => {
+    setScannerOpen(false);
+    setBarcodeInput(code);
+    handleBarcodeSearch(code);
   };
 
   // Clear selection when products change
@@ -242,6 +250,12 @@ export default function ProductsPage() {
             <X size={16} />
           </button>
         )}
+        <button
+          onClick={() => setScannerOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+        >
+          <Camera size={14} /> Scan barcode with camera
+        </button>
       </div>
 
       {/* Filter Bar */}
@@ -352,6 +366,8 @@ export default function ProductsPage() {
           </button>
         </div>
       )}
+
+      <BarcodeScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onScan={handleCameraScan} />
     </div>
   );
 }
