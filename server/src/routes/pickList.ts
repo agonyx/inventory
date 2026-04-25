@@ -23,13 +23,21 @@ app.get('/', async (c) => {
 // GET /api/pick-list/pdf — Pick list PDF
 app.get('/pdf', async (c) => {
   const download = c.req.query('download') === 'true';
+  const locationFilter = c.req.query('location');
 
-  const items = await generatePickList();
+  let items = await generatePickList();
+
+  if (locationFilter) {
+    items = items.filter(i => i.locationName === locationFilter);
+  }
 
   const doc = createPdf();
   const now = new Date();
   const dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  drawHeader(doc, 'Pick List', `Generated: ${dateStr} · ${items.length} items`);
+  const subtitle = locationFilter
+    ? `Generated: ${dateStr} · ${items.length} items · Location: ${locationFilter}`
+    : `Generated: ${dateStr} · ${items.length} items`;
+  drawHeader(doc, 'Pick List', subtitle);
 
   const leftX = doc.page.margins.left;
 

@@ -8,9 +8,11 @@ import {
   Loader2,
   Box,
   Truck,
+  Download,
 } from 'lucide-react';
 import { usePickList } from '../hooks/usePickList';
 import { useUpdateOrderStatus } from '../hooks/useOrders';
+import { openAuthenticatedUrl } from '../api/client';
 
 export default function PickListTable() {
   const { data: items, isLoading, refetch, isFetching } = usePickList();
@@ -107,6 +109,16 @@ export default function PickListTable() {
                     ({locItems[0]?.locationType || 'warehouse'})
                   </span>
                   <span className="ml-auto text-xs text-gray-400">{locItems.length} item{locItems.length !== 1 ? 's' : ''}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openAuthenticatedUrl('/pick-list/pdf?location=' + encodeURIComponent(loc), { download: true });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition ml-3"
+                  >
+                    <Download size={14} />
+                    Download PDF
+                  </button>
                 </button>
 
                 {!isCollapsed && (
