@@ -228,7 +228,7 @@ describe('Purchase Orders API', () => {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: [{ itemId, quantityReceived: 10 }],
+        items: [{ itemId, quantityReceived: 10, locationId: location.id }],
       }),
     });
     expect(receiveRes.status).toBe(200);
@@ -260,7 +260,7 @@ describe('Purchase Orders API', () => {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: [{ itemId, quantityReceived: 5 }],
+        items: [{ itemId, quantityReceived: 5, locationId: location.id }],
       }),
     });
     expect(receiveRes.status).toBe(200);
@@ -292,13 +292,14 @@ describe('Purchase Orders API', () => {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: [{ itemId, quantityReceived: 15 }],
+        items: [{ itemId, quantityReceived: 15, locationId: location.id }],
       }),
     });
     expect(receiveRes.status).toBe(409);
   });
 
   test('POST /:id/receive rejects non-sent PO', async () => {
+    const location = await seed.location({ name: 'Main WH' });
     const supplier = await seed.supplier({ name: 'S1' });
     const { variants } = await seed.product({ name: 'P1', sku: 'SKU-RN' });
     const variant = variants[0];
@@ -318,7 +319,7 @@ describe('Purchase Orders API', () => {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: [{ itemId, quantityReceived: 5 }],
+        items: [{ itemId, quantityReceived: 5, locationId: location.id }],
       }),
     });
     expect(receiveRes.status).toBe(409);
@@ -371,7 +372,7 @@ describe('Purchase Orders API', () => {
     await app.request(`/${created.id}/receive`, {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: [{ itemId, quantityReceived: 10 }] }),
+      body: JSON.stringify({ items: [{ itemId, quantityReceived: 10, locationId: location.id }] }),
     });
 
     const res = await app.request(`/${created.id}/cancel`, {
