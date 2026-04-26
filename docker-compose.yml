@@ -64,6 +64,7 @@ services:
       WATCHTOWER_LABEL_ENABLE: "true"
       WATCHTOWER_POLL_INTERVAL: 60
       WATCHTOWER_CLEANUP: "true"
+      DOCKER_API_VERSION: "1.43"
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
 
