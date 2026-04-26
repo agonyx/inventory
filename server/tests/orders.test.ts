@@ -78,7 +78,7 @@ describe('Orders API', () => {
 
     const order = await seed.order({
       externalOrderId: 'PACK-ORDER',
-      status: OrderStatus.PENDING,
+      status: OrderStatus.CONFIRMED,
       items: [{ variantId: variant.id, externalSku: variant.sku, quantity: 10, unitPrice: 5 }],
     });
 
@@ -90,7 +90,7 @@ describe('Orders API', () => {
     expect(res.status).toBe(200);
 
     const updated = await AppDataSource.getRepository(InventoryLevel).findOne({ where: { id: levels[0].id } });
-    expect(updated!.reservedQuantity).toBe(0); // unreserved
+    expect(updated!.reservedQuantity).toBe(0); // 10 - 10 unreserved
     expect(updated!.quantity).toBe(100); // actual stock unchanged
   });
 
@@ -118,8 +118,8 @@ describe('Orders API', () => {
     expect(res.status).toBe(200);
 
     const updated = await AppDataSource.getRepository(InventoryLevel).findOne({ where: { id: levels[0].id } });
-    expect(updated!.quantity).toBe(95); // 100 - 5
-    expect(updated!.reservedQuantity).toBe(0); // 5 - 5
+    expect(updated!.reservedQuantity).toBe(5); // reserved unchanged on shipped
+    expect(updated!.quantity).toBe(95); // 100 - 5 deducted
   });
 
   test('PATCH /:id/status CANCELLED returns stock', async () => {
@@ -146,8 +146,8 @@ describe('Orders API', () => {
     expect(res.status).toBe(200);
 
     const updated = await AppDataSource.getRepository(InventoryLevel).findOne({ where: { id: levels[0].id } });
-    expect(updated!.reservedQuantity).toBe(0); // 7 - 7
-    expect(updated!.quantity).toBe(107); // 100 + 7 (returned)
+    expect(updated!.reservedQuantity).toBe(0); // 7 - 7 unreserved
+    expect(updated!.quantity).toBe(100); // actual stock unchanged
   });
 
   test('PATCH /:id/status returns 404 for missing order', async () => {
