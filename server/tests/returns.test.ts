@@ -196,7 +196,8 @@ describe('Returns API', () => {
 
     const res = await app.request(`/${ret.id}/receive`, {
       method: 'PATCH',
-      headers: authHeader,
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locationId: loc.id }),
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -322,7 +323,8 @@ describe('Returns API', () => {
 
     const receiveRes = await app.request(`/${id}/receive`, {
       method: 'PATCH',
-      headers: authHeader,
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locationId: loc.id }),
     });
     expect(receiveRes.status).toBe(200);
     expect((await receiveRes.json()).status).toBe('received');
