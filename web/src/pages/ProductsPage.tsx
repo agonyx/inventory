@@ -84,6 +84,14 @@ export default function ProductsPage() {
   const products = data?.data || [];
   const pagination = data?.pagination;
 
+  const productsDataRef = useRef(data?.data);
+  useEffect(() => {
+    if (data?.data !== productsDataRef.current) {
+      productsDataRef.current = data?.data;
+      setSelectedIds(new Set());
+    }
+  });
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [stockAdjustTarget, setStockAdjustTarget] = useState<{
@@ -95,6 +103,7 @@ export default function ProductsPage() {
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
   // Barcode search (local state, pushed as a URL filter param)
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -116,11 +125,6 @@ export default function ProductsPage() {
     setBarcodeInput(code);
     handleBarcodeSearch(code);
   };
-
-  // Clear selection when products change
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [products]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -147,9 +151,11 @@ export default function ProductsPage() {
       onSuccess: (data: { deleted: number }) => {
         toast.success(`${data.deleted} product(s) deleted`);
         setSelectedIds(new Set());
+        setBulkDeleteConfirmOpen(false);
       },
       onError: (err: any) => {
         toast.error(err.message || 'Failed to delete products');
+        setBulkDeleteConfirmOpen(false);
       },
     });
   };
@@ -331,13 +337,13 @@ export default function ProductsPage() {
 
       {/* Bulk Delete Confirmation Modal */}
       <ConfirmModal
-        open={selectedIds.size > 0 && !deleteTarget}
+        open={bulkDeleteConfirmOpen}
         title="Delete Selected Products"
         message={`Are you sure you want to delete ${selectedIds.size} selected product(s)? This action cannot be undone.`}
         confirmLabel={`Delete ${selectedIds.size} Product(s)`}
         variant="danger"
         onConfirm={handleBulkDelete}
-        onCancel={() => setSelectedIds(new Set())}
+        onCancel={() => setBulkDeleteConfirmOpen(false)}
       />
 
       {/* Floating Bulk Action Bar */}
@@ -353,7 +359,7 @@ export default function ProductsPage() {
           </button>
           <div className="w-px h-5 bg-gray-600" />
           <button
-            onClick={handleBulkDelete}
+            onClick={() => setBulkDeleteConfirmOpen(true)}
             disabled={bulkDelete.isPending}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition"
           >

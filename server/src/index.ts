@@ -15,7 +15,7 @@ setupDocs(app);
 import webhookRoute from './routes/webhooks';
 import { errorHandler } from './middleware/error-handler';
 import { jwtAuth } from './middleware/jwt-auth';
-import { requireRole, requireAdmin } from './middleware/rbac';
+import { requireRole, requireAdmin, requirePermission } from './middleware/rbac';
 import { UserRole } from './entities/User';
 import productsRoute from './routes/products';
 import inventoryRoute from './routes/inventory';
@@ -54,52 +54,52 @@ app.use('/api/*', jwtAuth);
 app.use('/api/users/*', requireAdmin);
 app.route('/api/users', usersRoute);
 
-app.use('/api/webhooks/config/*', requireRole(UserRole.ADMIN));
+app.use('/api/webhooks/config/*', requireRole(UserRole.ADMIN), requirePermission('webhooks/config'));
 app.route('/api/webhooks/config', webhookConfigsRoute);
 
-app.use('/api/products/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.use('/api/products/*', requireRole(UserRole.ADMIN, UserRole.MANAGER), requirePermission('products'));
 app.route('/api/products', productsRoute);
 
-app.use('/api/suppliers/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.use('/api/suppliers/*', requireRole(UserRole.ADMIN, UserRole.MANAGER), requirePermission('suppliers'));
 app.route('/api/suppliers', suppliersRoute);
 
-app.use('/api/purchase-orders/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.use('/api/purchase-orders/*', requireRole(UserRole.ADMIN, UserRole.MANAGER), requirePermission('purchase-orders'));
 app.route('/api/purchase-orders', purchaseOrdersRoute);
 
-app.use('/api/orders/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.use('/api/orders/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE), requirePermission('orders'));
 app.route('/api/orders', ordersRoute);
 
-app.use('/api/reports/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.use('/api/reports/*', requireRole(UserRole.ADMIN, UserRole.MANAGER), requirePermission('reports'));
 app.route('/api/reports', reportsRoute);
 
-app.use('/api/audit-logs/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.use('/api/audit-logs/*', requireRole(UserRole.ADMIN, UserRole.MANAGER), requirePermission('audit-logs'));
 app.route('/api/audit-logs', auditLogsRoute);
 
-app.use('/api/bulk/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.use('/api/bulk/*', requireRole(UserRole.ADMIN, UserRole.MANAGER), requirePermission('products'));
 app.route('/api/bulk', bulkRoute);
 
-app.use('/api/pick-list/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.use('/api/pick-list/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE), requirePermission('pick-list'));
 app.route('/api/pick-list', pickListRoute);
 
-app.use('/api/inventory/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.use('/api/inventory/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE), requirePermission('inventory'));
 app.route('/api/inventory', inventoryRoute);
 
-app.use('/api/transfers/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.use('/api/transfers/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE), requirePermission('transfers'));
 app.route('/api/transfers', transfersRoute);
 
-app.use('/api/stocktakes/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.use('/api/stocktakes/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE), requirePermission('stocktakes'));
 app.route('/api/stocktakes', stocktakesRoute);
 
-app.use('/api/locations/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.use('/api/locations/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE), requirePermission('locations'));
 app.route('/api/locations', locationsRoute);
 
-app.use('/api/notifications/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.use('/api/notifications/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE), requirePermission('notifications'));
 app.route('/api/notifications', notificationsRoute);
 
-app.use('/api/alerts/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE));
+app.use('/api/alerts/*', requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE), requirePermission('inventory'));
 app.route('/api/alerts', alertsRoute);
 
-app.use('/api/returns/*', requireRole(UserRole.ADMIN, UserRole.MANAGER));
+app.use('/api/returns/*', requireRole(UserRole.ADMIN, UserRole.MANAGER), requirePermission('returns'));
 app.route('/api/returns', returnsRoute);
 
 app.onError(errorHandler);

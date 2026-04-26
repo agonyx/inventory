@@ -98,14 +98,29 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
 }
 
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
-  const token = getAccessToken();
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: formData,
-  });
+  const makeUpload = async (token: string | null): Promise<Response> => {
+    return fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+  };
+
+  let token = getAccessToken();
+  let res = await makeUpload(token);
+
+  if (res.status === 401 && getRefreshToken()) {
+    try {
+      token = await refreshAccessToken();
+      res = await makeUpload(token);
+    } catch {
+      clearTokens();
+      window.location.href = '/login';
+      throw new Error('Session expired. Please log in again.');
+    }
+  }
 
   if (!res.ok) {
     const errorText = await res.text();

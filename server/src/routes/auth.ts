@@ -14,6 +14,7 @@ import {
 import { AppError, ErrorCode } from '../errors/app-error';
 import { errorHandler } from '../middleware/error-handler';
 import { jwtAuth } from '../middleware/jwt-auth';
+import { loginRateLimit } from '../middleware/rate-limit';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -26,7 +27,7 @@ const refreshSchema = z.object({
 
 const app = new Hono();
 
-app.post('/login', zValidator('json', loginSchema), async (c) => {
+app.post('/login', loginRateLimit, zValidator('json', loginSchema), async (c) => {
   const { email, password } = c.req.valid('json');
   const { user, tokens } = await authenticateUser(email, password);
   return c.json({

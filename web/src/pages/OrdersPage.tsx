@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -230,9 +230,13 @@ export default function OrdersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState('confirmed');
 
+  const ordersDataRef = useRef(data?.data);
   useEffect(() => {
-    setSelectedIds(new Set());
-  }, [orders]);
+    if (data?.data !== ordersDataRef.current) {
+      ordersDataRef.current = data?.data;
+      setSelectedIds(new Set());
+    }
+  });
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {

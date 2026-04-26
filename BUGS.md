@@ -11,14 +11,14 @@
 
 ## HIGH
 
-| # | Issue | Location |
-|---|-------|----------|
-| 5 | **No rate limiting on login** — `POST /auth/login` is wide open to brute force | `server/src/index.ts` |
-| 6 | **RBAC uses stale role from JWT** — demoted users retain old privileges until token expires | `server/src/middleware/rbac.ts:20-24` |
-| 7 | **`ROLE_PERMISSIONS` defined but never enforced** — resource-level auth is dead code | `server/src/middleware/rbac.ts:5-16` |
-| 8 | **`useEffect` fires every render** when query data is undefined — inline `[]` fallback creates new reference, clearing selection on each render | `InventoryPage.tsx:66`, `ProductsPage.tsx:121`, `OrdersPage.tsx:233` |
-| 9 | **ProductsPage bulk delete ConfirmModal opens on any selection** instead of on button click; actual delete button has no confirmation | `ProductsPage.tsx:333` |
-| 10 | **`apiUpload` skips 401 token refresh** — image uploads fail when access token expires | `web/src/api/client.ts:100-121` |
+| # | Issue | Location | Status |
+|---|-------|----------|--------|
+| 5 | **No rate limiting on login** — Added `loginRateLimit` middleware (10 attempts / 15 min per IP) | `server/src/middleware/rate-limit.ts`, `server/src/routes/auth.ts` | ✅ Fixed |
+| 6 | **RBAC uses stale role from JWT** — `requireRole` now fetches fresh role from DB on every request | `server/src/middleware/rbac.ts:18-36` | ✅ Fixed |
+| 7 | **`ROLE_PERMISSIONS` defined but never enforced** — Added `requirePermission(resource)` middleware, wired into all `/api/*` routes | `server/src/middleware/rbac.ts:38-56`, `server/src/index.ts` | ✅ Fixed |
+| 8 | **`useEffect` fires every render** — Replaced inline `[]` fallback with `useRef` identity check, only resets selection on actual data changes | `InventoryPage.tsx`, `ProductsPage.tsx`, `OrdersPage.tsx` | ✅ Fixed |
+| 9 | **ProductsPage bulk delete ConfirmModal opens on any selection** — Added `bulkDeleteConfirmOpen` state; modal only opens on button click | `ProductsPage.tsx` | ✅ Fixed |
+| 10 | **`apiUpload` skips 401 token refresh** — Added 401 retry with `refreshAccessToken` before failing | `web/src/api/client.ts:100-121` | ✅ Fixed |
 
 ## MEDIUM
 

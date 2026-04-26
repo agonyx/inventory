@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Download, Warehouse, SlidersHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
 import useUrlFilters from '../hooks/useUrlFilters';
@@ -56,16 +56,20 @@ export default function InventoryPage() {
   const inventoryLevels = data?.data ?? [];
   const pagination = data?.pagination;
 
+  const dataRef = useRef(data?.data);
+  useEffect(() => {
+    if (data?.data !== dataRef.current) {
+      dataRef.current = data?.data;
+      setSelectedIds(new Set());
+    }
+  });
+
   // Stock adjust dialog
   const [adjustTarget, setAdjustTarget] = useState<InventoryLevel | null>(null);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAdjustOpen, setBulkAdjustOpen] = useState(false);
-
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [inventoryLevels]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
