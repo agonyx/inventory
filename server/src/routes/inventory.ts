@@ -108,6 +108,7 @@ app.post('/:id/adjust', zValidator('json', adjustSchema), async (c) => {
   const result = await AppDataSource.transaction(async (manager) => {
     const level = await manager.findOne(InventoryLevel, {
       where: { id },
+      relations: ['variant'],
       lock: { mode: 'pessimistic_write' },
     });
     if (!level) throw new AppError(404, ErrorCode.NOT_FOUND, 'Inventory level not found');
