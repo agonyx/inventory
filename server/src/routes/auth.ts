@@ -54,7 +54,7 @@ app.post('/logout', async (c) => {
 
 app.get('/me', async (c) => {
   const auth = c.req.header('Authorization');
-  const token = auth?.replace('Bearer ', '');
+  const token = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token) {
     throw new AppError(401, ErrorCode.UNAUTHORIZED, 'Missing authorization header');
   }

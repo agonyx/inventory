@@ -284,9 +284,9 @@ export default function OrdersPage() {
     );
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
-    openAuthenticatedUrl(`/orders/export${qs}`);
+    await openAuthenticatedUrl(`/orders/export${qs}`);
   };
 
   // Combine filter values (flat filters plus date-range sub-keys) for FilterBar

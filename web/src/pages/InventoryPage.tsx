@@ -87,9 +87,9 @@ export default function InventoryPage() {
   const allSelected = inventoryLevels.length > 0 && selectedIds.size === inventoryLevels.length;
   const someSelected = selectedIds.size > 0 && !allSelected;
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
-    openAuthenticatedUrl(`/inventory/export${qs}`);
+    await openAuthenticatedUrl(`/inventory/export${qs}`);
   };
 
   // Get selected inventory levels for bulk adjust

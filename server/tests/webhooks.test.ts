@@ -252,7 +252,7 @@ describe('Webhooks API', () => {
     }
   });
 
-  test('POST /orders skips signature verification when WEBHOOK_SECRET is not set', async () => {
+  test('POST /orders rejects requests when WEBHOOK_SECRET is not set', async () => {
     const originalSecret = process.env.WEBHOOK_SECRET;
     process.env.WEBHOOK_SECRET = '';
 
@@ -268,16 +268,15 @@ describe('Webhooks API', () => {
         items: [{ sku: 'NOSIG-001-STD', quantity: 1, unitPrice: 10 }],
       });
 
-      // No X-Webhook-Signature header — should be accepted when no secret configured
       const res = await app.request('/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: payload,
       });
 
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(500);
       const body = await res.json();
-      expect(body.success).toBe(true);
+      expect(body.error.message).toContain('WEBHOOK_SECRET');
     } finally {
       process.env.WEBHOOK_SECRET = originalSecret;
     }

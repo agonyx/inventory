@@ -197,9 +197,9 @@ export default function ProductsPage() {
     setStockAdjustTarget({ level, variant, product });
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const qs = new URLSearchParams(params).toString();
-    openAuthenticatedUrl('/products/export' + (qs ? '?' + qs : ''));
+    await openAuthenticatedUrl('/products/export' + (qs ? '?' + qs : ''));
   };
 
   const exportParams = useMemo(() => {

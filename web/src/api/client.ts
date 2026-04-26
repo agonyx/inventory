@@ -125,14 +125,38 @@ export function logout() {
   window.location.href = '/login';
 }
 
-/**
- * Open a binary URL (PDF, CSV, etc.) with the auth token attached.
- * Appends token as a query param since we can't set headers on window.open.
- */
-export function openAuthenticatedUrl(path: string, options?: { download?: boolean }) {
-  const token = getAccessToken();
+export async function openAuthenticatedUrl(path: string, options?: { download?: boolean }) {
   const url = new URL(`${API_BASE}${path}`, window.location.origin);
   if (options?.download) url.searchParams.set('download', 'true');
-  if (token) url.searchParams.set('token', token);
-  window.open(url.toString(), '_blank');
+
+  const token = getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(url.toString(), { headers });
+  if (!res.ok) {
+    if (res.status === 401 && getRefreshToken()) {
+      const newToken = await refreshAccessToken();
+      headers['Authorization'] = `Bearer ${newToken}`;
+      const retry = await fetch(url.toString(), { headers });
+      if (!retry.ok) throw new Error('Download failed');
+      return downloadBlob(retry);
+    }
+    throw new Error('Download failed');
+  }
+  await downloadBlob(res);
+}
+
+async function downloadBlob(res: Response) {
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match?.[1] || 'download';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
 }
