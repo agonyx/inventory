@@ -78,8 +78,8 @@ function ShippingSection({ order }: { order: Order }) {
         onSuccess: () => {
           toast.success('Shipping info updated');
         },
-        onError: (err: any) => {
-          toast.error(err.message || 'Failed to update shipping info');
+        onError: (err: unknown) => {
+          toast.error(err instanceof Error ? err.message : 'Failed to update shipping info');
         },
       },
     );

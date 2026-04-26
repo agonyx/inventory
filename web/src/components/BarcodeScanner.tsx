@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Camera } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
@@ -12,6 +12,8 @@ interface BarcodeScannerProps {
 export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
               const text = result.getText();
               if (text) {
                 controls.stop();
-                onScan(text);
+                onScanRef.current(text);
               }
             }
           },
@@ -81,7 +83,7 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
       controlsRef.current = null;
       BrowserMultiFormatReader.releaseAllStreams();
     };
-  }, [open, onScan]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;

@@ -111,8 +111,8 @@ export default function LocationsPage() {
         toast.success('Location created successfully.');
       }
       closeForm();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to save location.');
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Failed to save location.');
     }
   };
 

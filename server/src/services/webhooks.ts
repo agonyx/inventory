@@ -58,8 +58,8 @@ export async function fireWebhooks(event: string, data: Record<string, any>): Pr
         }
 
         console.warn(`[webhook] ${config.url} returned ${res.status} for ${event} (attempt ${attempt + 1})`);
-      } catch (err: any) {
-        console.warn(`[webhook] Failed to deliver ${event} to ${config.url} (attempt ${attempt + 1}): ${err.message}`);
+      } catch (err: unknown) {
+        console.warn(`[webhook] Failed to deliver ${event} to ${config.url} (attempt ${attempt + 1}): ${err instanceof Error ? err.message : String(err)}`);
       }
 
       if (attempt < MAX_RETRIES - 1) {

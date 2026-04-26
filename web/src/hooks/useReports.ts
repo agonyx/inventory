@@ -79,6 +79,19 @@ export function useTopProducts(limit = 10, from?: string, to?: string) {
   });
 }
 
+export interface OrdersByStatus {
+  status: string;
+  count: number;
+}
+
+export function useOrdersByStatus() {
+  return useQuery({
+    queryKey: ['reports', 'orders-by-status'],
+    queryFn: () => apiFetch<OrdersByStatus[]>('/reports/orders-by-status'),
+    refetchInterval: 60000,
+  });
+}
+
 export function useInventoryValuation() {
   return useQuery({
     queryKey: ['reports', 'inventory-valuation'],

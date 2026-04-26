@@ -36,6 +36,7 @@ const updatePOSchema = z.object({
 const receiveItemSchema = z.object({
   itemId: z.string().uuid(),
   quantityReceived: z.number().int().positive(),
+  locationId: z.string().uuid(),
 });
 
 const receiveSchema = z.object({
@@ -225,25 +226,21 @@ app.post('/:id/receive', zValidator('json', receiveSchema), async (c) => {
       item.receivedQuantity = newReceived;
       await manager.save(PurchaseOrderItem, item);
 
-      const locations = await manager.find('Location' as any);
-      const locationId = locations.length > 0 ? locations[0].id : null;
-
-      if (locationId) {
-        let invLevel = await manager.findOne(InventoryLevel, {
-          where: { variantId: item.variantId, locationId },
+      const locationId = recv.locationId;
+      let invLevel = await manager.findOne(InventoryLevel, {
+        where: { variantId: item.variantId, locationId },
+      });
+      if (invLevel) {
+        invLevel.quantity += recv.quantityReceived;
+        await manager.save(InventoryLevel, invLevel);
+      } else {
+        invLevel = manager.create(InventoryLevel, {
+          variantId: item.variantId,
+          locationId,
+          quantity: recv.quantityReceived,
+          reservedQuantity: 0,
         });
-        if (invLevel) {
-          invLevel.quantity += recv.quantityReceived;
-          await manager.save(InventoryLevel, invLevel);
-        } else {
-          invLevel = manager.create(InventoryLevel, {
-            variantId: item.variantId,
-            locationId,
-            quantity: recv.quantityReceived,
-            reservedQuantity: 0,
-          });
-          await manager.save(InventoryLevel, invLevel);
-        }
+        await manager.save(InventoryLevel, invLevel);
       }
     }
 

@@ -38,18 +38,23 @@ app.post('/login', loginRateLimit, zValidator('json', loginSchema), async (c) =>
 
 app.post('/refresh', zValidator('json', refreshSchema), async (c) => {
   const { refreshToken } = c.req.valid('json');
-  const { userId } = verifyRefreshToken(refreshToken);
+  const { userId, tokenVersion } = verifyRefreshToken(refreshToken);
   const userRepo = AppDataSource.getRepository(User);
   const user = await userRepo.findOne({ where: { id: userId } });
   if (!user) {
     throw new AppError(401, ErrorCode.UNAUTHORIZED, 'User not found');
   }
+  if (user.tokenVersion !== tokenVersion) {
+    throw new AppError(401, ErrorCode.UNAUTHORIZED, 'Refresh token has been revoked');
+  }
   const tokens = generateTokens(user);
   return c.json({ tokens });
 });
 
-app.post('/logout', async (c) => {
-  // Stateless JWT — client discards tokens. In future, add token blacklist.
+app.post('/logout', jwtAuth, async (c) => {
+  const auth = c.get('auth');
+  const userRepo = AppDataSource.getRepository(User);
+  await userRepo.increment({ id: auth.userId }, 'tokenVersion', 1);
   return c.json({ success: true });
 });
 

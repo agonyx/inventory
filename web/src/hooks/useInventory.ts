@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
+import type { PaginatedResponse } from '../types';
 
 export interface InventoryLevel {
   id: string;
@@ -9,11 +10,6 @@ export interface InventoryLevel {
   reservedQuantity: number;
   variant: { id: string; name: string; sku: string; barcode?: string | null; product: { id: string; name: string } };
   location: { id: string; name: string; type: string | null };
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
 export function useInventory(params?: Record<string, string>) {

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
-import type { PaginatedResponse } from './useProducts';
+import type { PaginatedResponse } from '../types';
 
 export interface UserItem {
   id: string;
@@ -58,22 +58,10 @@ export function useDeleteUser() {
 
 export function useChangePassword() {
   return useMutation({
-    mutationFn: (data: { currentPassword: string; newPassword: string }) => {
-      const token = localStorage.getItem('access_token');
-      return fetch('/auth/change-password', {
+    mutationFn: (data: { currentPassword: string; newPassword: string }) =>
+      apiFetch<{ success: boolean; message: string }>('/auth/change-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(data),
-      }).then(async (res) => {
-        if (!res.ok) {
-          const body = await res.text();
-          throw new Error(body || 'Failed to change password');
-        }
-        return res.json();
-      });
-    },
+      }),
   });
 }

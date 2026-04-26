@@ -15,8 +15,8 @@ export default function LoginPage() {
     try {
       await login.mutateAsync({ email, password });
       navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed');
     }
   };
 

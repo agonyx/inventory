@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiUpload } from '../api/client';
+import type { PaginatedResponse } from '../types';
 
 export interface Product {
   id: string;
@@ -42,11 +43,6 @@ export interface Location {
   name: string;
   type: string | null;
   address: string | null;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
 export function useProducts(params?: Record<string, string>) {

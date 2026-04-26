@@ -16,7 +16,13 @@ declare module 'hono' {
 
 export const jwtAuth: MiddlewareHandler = async (c, next) => {
   const auth = c.req.header('Authorization');
-  let token = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
+  let token: string | null = null;
+  if (auth) {
+    const parts = auth.split(' ');
+    if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
+      token = parts[1];
+    }
+  }
 
   if (!token) {
     throw new AppError(401, ErrorCode.UNAUTHORIZED, 'Missing authorization');

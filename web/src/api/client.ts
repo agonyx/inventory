@@ -60,12 +60,18 @@ async function refreshAccessToken(): Promise<string> {
 
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const makeRequest = async (token: string | null): Promise<Response> => {
+    const defaultHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+    const mergedHeaders = {
+      ...defaultHeaders,
+      ...(options?.headers as Record<string, string> | undefined),
+    };
+    const { headers: _omitHeaders, ...restOptions } = options ?? {};
     return fetch(`${API_BASE}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      ...options,
+      ...restOptions,
+      headers: mergedHeaders,
     });
   };
 

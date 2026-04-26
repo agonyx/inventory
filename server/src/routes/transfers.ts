@@ -85,19 +85,20 @@ app.post('/', zValidator('json', createTransferSchema), async (c) => {
     throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Source and destination locations must be different');
   }
 
-  // Validate stock availability for all items
-  for (const item of body.items) {
-    const level = await inventoryRepo().findOne({
-      where: { variantId: item.variantId, locationId: body.fromLocationId },
-    });
-    const available = level ? level.quantity - level.reservedQuantity : 0;
-    if (available < item.quantity) {
-      throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK,
-        `Insufficient stock at source for variant ${item.variantId}: need ${item.quantity}, available ${available}`);
-    }
-  }
-
   const result = await AppDataSource.transaction(async (manager) => {
+    // Validate stock availability for all items inside transaction with locks
+    for (const item of body.items) {
+      const level = await manager.findOne(InventoryLevel, {
+        where: { variantId: item.variantId, locationId: body.fromLocationId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const available = level ? level.quantity - level.reservedQuantity : 0;
+      if (available < item.quantity) {
+        throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK,
+          `Insufficient stock at source for variant ${item.variantId}: need ${item.quantity}, available ${available}`);
+      }
+    }
+
     const transfer = manager.create(Transfer, {
       fromLocationId: body.fromLocationId,
       toLocationId: body.toLocationId,
@@ -163,14 +164,21 @@ app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
           where: { variantId: item.variantId, locationId: transfer.fromLocationId },
           lock: { mode: 'pessimistic_write' },
         });
-        if (sourceLevel) {
-          sourceLevel.quantity = Math.max(0, sourceLevel.quantity - item.quantity);
-          await manager.save(sourceLevel);
+        if (!sourceLevel) {
+          throw new AppError(404, ErrorCode.NOT_FOUND,
+            `No source inventory found for variant ${item.variantId} at location ${transfer.fromLocationId}`);
         }
+        if (sourceLevel.quantity < item.quantity) {
+          throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK,
+            `Insufficient stock for variant ${item.variantId}: have ${sourceLevel.quantity}, need ${item.quantity}`);
+        }
+        sourceLevel.quantity -= item.quantity;
+        await manager.save(sourceLevel);
 
         // Add to destination (create if not exists)
         let destLevel = await manager.findOne(InventoryLevel, {
           where: { variantId: item.variantId, locationId: transfer.toLocationId },
+          lock: { mode: 'pessimistic_write' },
         });
         if (!destLevel) {
           destLevel = manager.create(InventoryLevel, {

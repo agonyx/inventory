@@ -36,7 +36,7 @@ export function generateTokens(user: User): TokenPair {
   const secret = getJwtSecret();
   const payload: TokenPayload = { userId: user.id, email: user.email, role: user.role };
   const accessToken = jwt.sign(payload, secret, { expiresIn: JWT_ACCESS_EXPIRY });
-  const refreshToken = jwt.sign({ userId: user.id, type: 'refresh' }, secret, { expiresIn: JWT_REFRESH_EXPIRY });
+  const refreshToken = jwt.sign({ userId: user.id, type: 'refresh', tokenVersion: user.tokenVersion }, secret, { expiresIn: JWT_REFRESH_EXPIRY });
   return { accessToken, refreshToken };
 }
 
@@ -53,13 +53,13 @@ export function verifyAccessToken(token: string): TokenPayload {
   }
 }
 
-export function verifyRefreshToken(token: string): { userId: string } {
+export function verifyRefreshToken(token: string): { userId: string; tokenVersion: number } {
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string; type: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string; type: string; tokenVersion: number };
     if (decoded.type !== 'refresh') {
       throw new AppError(401, ErrorCode.UNAUTHORIZED, 'Invalid token type');
     }
-    return { userId: decoded.userId };
+    return { userId: decoded.userId, tokenVersion: decoded.tokenVersion };
   } catch (err) {
     if (err instanceof AppError) throw err;
     throw new AppError(401, ErrorCode.UNAUTHORIZED, 'Invalid or expired refresh token');

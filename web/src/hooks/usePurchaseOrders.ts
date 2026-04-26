@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
+import type { PaginatedResponse } from '../types';
 
 export type PurchaseOrderStatus = 'draft' | 'sent' | 'partially_received' | 'received' | 'cancelled';
 
@@ -30,11 +31,6 @@ export interface PurchaseOrder {
   totalCost?: number;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
 export function usePurchaseOrders(params?: Record<string, string>) {

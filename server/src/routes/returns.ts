@@ -202,8 +202,9 @@ app.patch('/:id/reject', async (c) => {
   return c.json(result);
 });
 
-app.patch('/:id/receive', async (c) => {
+app.patch('/:id/receive', zValidator('json', z.object({ locationId: z.string().uuid() })), async (c) => {
   const id = c.req.param('id');
+  const { locationId } = c.req.valid('json');
 
   const result = await AppDataSource.transaction(async (manager) => {
     const ret = await manager.findOne(Return, {
@@ -224,14 +225,22 @@ app.patch('/:id/receive', async (c) => {
     for (const item of ret.items) {
       if (!item.variantId) continue;
 
-      const levels = await manager.find(InventoryLevel, {
-        where: { variantId: item.variantId },
+      let invLevel = await manager.findOne(InventoryLevel, {
+        where: { variantId: item.variantId, locationId },
         lock: { mode: 'pessimistic_write' },
       });
 
-      if (levels.length > 0) {
-        levels[0].quantity += item.quantity;
-        await manager.save(levels[0]);
+      if (invLevel) {
+        invLevel.quantity += item.quantity;
+        await manager.save(invLevel);
+      } else {
+        invLevel = manager.create(InventoryLevel, {
+          variantId: item.variantId,
+          locationId,
+          quantity: item.quantity,
+          reservedQuantity: 0,
+        });
+        await manager.save(invLevel);
       }
 
       const audit = manager.create(AuditLog, {

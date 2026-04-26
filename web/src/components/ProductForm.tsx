@@ -51,8 +51,8 @@ function ImageDropzone({ productId, images, onUpload, onDelete }: ImageDropzoneP
       }
       try {
         await onUpload.mutateAsync({ productId, file });
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to upload image');
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to upload image');
       }
     }
   }, [productId, onUpload]);

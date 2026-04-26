@@ -68,10 +68,6 @@ app.get('/', async (c) => {
 
   const where: any = {};
 
-  if (search) {
-    where.name = ILike(`%${search}%`);
-    where.sku = ILike(`%${search}%`);
-  }
   if (category) {
     where.category = category;
   }
@@ -104,10 +100,19 @@ app.get('/', async (c) => {
   }
 
   if (stockStatus) {
-    // Need to load all matching products to filter by computed stock
-    const effectiveWhere = barcodeProductIds
-      ? { ...where, id: In(barcodeProductIds) }
-      : where;
+    let effectiveWhere: any;
+    if (search) {
+      const base: any = { ...where };
+      if (barcodeProductIds) base.id = In(barcodeProductIds);
+      effectiveWhere = [
+        { ...base, name: ILike(`%${search}%`) },
+        { ...base, sku: ILike(`%${search}%`) },
+      ];
+    } else {
+      effectiveWhere = barcodeProductIds
+        ? { ...where, id: In(barcodeProductIds) }
+        : where;
+    }
     const allResults = await productRepo().find({
       where: effectiveWhere,
       relations,

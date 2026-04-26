@@ -94,8 +94,8 @@ export default function TransferForm({ open, onClose }: TransferFormProps) {
           setNotes('');
           setItemRows([{ variantId: '', quantity: 1 }]);
         },
-        onError: (err: any) => {
-          toast.error(err?.message || 'Failed to create transfer');
+        onError: (err: unknown) => {
+          toast.error(err instanceof Error ? err.message : 'Failed to create transfer');
         },
       },
     );

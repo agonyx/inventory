@@ -110,8 +110,8 @@ export default function SuppliersPage() {
         toast.success('Supplier created successfully.');
       }
       closeForm();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to save supplier.');
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Failed to save supplier.');
     }
   };
 

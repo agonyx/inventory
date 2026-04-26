@@ -48,7 +48,7 @@ function CreateStocktakeModal({ open, onClose }: CreateStocktakeModalProps) {
       { locationId, notes: notes || undefined },
       {
         onSuccess: () => { toast.success('Stocktake created'); onClose(); setLocationId(''); setNotes(''); },
-        onError: (err: any) => toast.error(err?.message || 'Failed to create'),
+        onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Failed to create'),
       },
     );
   };
@@ -107,7 +107,7 @@ function StocktakeCountModal({ stocktakeId, open, onClose }: StocktakeCountModal
   const handleCount = (itemId: string, countedQty: number) => {
     updateItem.mutate(
       { stocktakeId, itemId, countedQuantity: countedQty },
-      { onError: (err: any) => toast.error(err?.message || 'Failed to update') },
+      { onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Failed to update') },
     );
   };
 
@@ -141,7 +141,7 @@ function StocktakeCountModal({ stocktakeId, open, onClose }: StocktakeCountModal
                   <input
                     type="number"
                     min={0}
-                    defaultValue={item.countedQuantity ?? ''}
+                    value={item.countedQuantity ?? ''}
                     placeholder={String(item.systemQuantity)}
                     onBlur={(e) => {
                       const val = parseInt(e.target.value);

@@ -153,8 +153,8 @@ export default function ProductsPage() {
         setSelectedIds(new Set());
         setBulkDeleteConfirmOpen(false);
       },
-      onError: (err: any) => {
-        toast.error(err.message || 'Failed to delete products');
+      onError: (err: unknown) => {
+        toast.error(err instanceof Error ? err.message : 'Failed to delete products');
         setBulkDeleteConfirmOpen(false);
       },
     });

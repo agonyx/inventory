@@ -1,10 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
-}
+import type { PaginatedResponse } from '../types';
 
 export interface StocktakeItem {
   id: string;

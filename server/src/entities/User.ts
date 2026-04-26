@@ -30,6 +30,9 @@ export class User {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @Column({ type: 'int', default: 0 })
+  tokenVersion: number;
+
   @Column({ type: 'timestamp', nullable: true })
   lastLogin: Date | null;
 }

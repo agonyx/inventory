@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
+import type { PaginatedResponse } from '../types';
 
 export interface Location {
   id: string;
@@ -8,11 +9,6 @@ export interface Location {
   address: string | null;
   variantCount?: number;
   createdAt?: string;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
 export function useLocations(params?: Record<string, string>) {

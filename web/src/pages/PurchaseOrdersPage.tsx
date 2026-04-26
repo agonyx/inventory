@@ -187,7 +187,7 @@ export default function PurchaseOrdersPage() {
                       {po.status === 'draft' && (
                         <>
                           <button
-                            onClick={() => sendPO.mutate(po.id, { onSuccess: () => toast.success('PO sent'), onError: (err: any) => toast.error(err.message) })}
+                            onClick={() => sendPO.mutate(po.id, { onSuccess: () => toast.success('PO sent'), onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Failed to send PO') })}
                             className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
                           >
                             <Send size={12} /> Send

@@ -41,8 +41,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       html,
     });
     console.log(`[email] Sent to ${to}: ${info.messageId}`);
-  } catch (err: any) {
-    console.error(`[email] Failed to send to ${to}: ${err.message}`);
+  } catch (err: unknown) {
+    console.error(`[email] Failed to send to ${to}: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

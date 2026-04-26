@@ -111,7 +111,7 @@ function CreateReturnModal({
           setNotes('');
           setSelectedItems({});
         },
-        onError: (err: any) => toast.error(err?.message || 'Failed to create return'),
+        onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Failed to create return'),
       },
     );
   };

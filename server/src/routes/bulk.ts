@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { In } from 'typeorm';
+import { In, Not } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { Product } from '../entities/Product';
 import { ProductVariant } from '../entities/ProductVariant';
@@ -27,6 +27,14 @@ const bulkStatusSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(100),
   status: z.nativeEnum(OrderStatus),
 });
+
+const VALID_BULK_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PACKED, OrderStatus.CANCELLED],
+  [OrderStatus.PACKED]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+  [OrderStatus.SHIPPED]: [],
+  [OrderStatus.CANCELLED]: [],
+};
 
 const bulkAdjustItemSchema = z.object({
   inventoryLevelId: z.string().uuid(),
@@ -61,6 +69,17 @@ app.post('/products/bulk-delete', zValidator('json', bulkDeleteSchema), async (c
     for (const product of products) {
       for (const variant of product.variants) {
         variantIds.push(variant.id);
+      }
+    }
+
+    // Check for active stock before deleting
+    if (variantIds.length > 0) {
+      const activeLevels = await manager.find(InventoryLevel, {
+        where: variantIds.map((vid) => ({ variantId: vid, quantity: Not(0) })),
+      });
+      if (activeLevels.length > 0) {
+        throw new AppError(409, ErrorCode.CONFLICT,
+          `Cannot delete: ${activeLevels.length} inventory level(s) still have stock. Zero out stock first.`);
       }
     }
 
@@ -112,32 +131,31 @@ app.post('/orders/bulk-status', zValidator('json', bulkStatusSchema), async (c) 
       // Skip orders already in the target status
       if (oldStatus === status) continue;
 
-      // Apply status change and inventory adjustments (same logic as single status update)
+      // Validate transition
+      if (!VALID_BULK_TRANSITIONS[oldStatus]?.includes(status)) continue;
+
       order.status = status;
       await manager.save(order);
 
-      // Handle stock adjustments based on status change
-      if (status === OrderStatus.PACKED || status === OrderStatus.SHIPPED || status === OrderStatus.CANCELLED) {
-        for (const item of order.items) {
-          if (!item.variant) continue;
+      for (const item of order.items) {
+        if (!item.variant) continue;
 
-          const level = await manager.findOne(InventoryLevel, {
-            where: { variantId: item.variant.id },
-            lock: { mode: 'pessimistic_write' },
-          });
-          if (!level) continue;
+        const level = await manager.findOne(InventoryLevel, {
+          where: { variantId: item.variant.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!level) continue;
 
-          if (status === OrderStatus.PACKED) {
-            level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-          } else if (status === OrderStatus.SHIPPED) {
-            level.quantity = Math.max(0, level.quantity - item.quantity);
-            level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-          } else if (status === OrderStatus.CANCELLED) {
-            level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-            level.quantity += item.quantity;
-          }
-          await manager.save(level);
+        if (oldStatus === OrderStatus.PENDING && status === OrderStatus.CANCELLED) {
+          level.reservedQuantity -= item.quantity;
+        } else if (oldStatus === OrderStatus.CONFIRMED && status === OrderStatus.PACKED) {
+          level.reservedQuantity -= item.quantity;
+        } else if (oldStatus === OrderStatus.CONFIRMED && status === OrderStatus.CANCELLED) {
+          level.reservedQuantity -= item.quantity;
+        } else if (oldStatus === OrderStatus.PACKED && status === OrderStatus.SHIPPED) {
+          level.quantity -= item.quantity;
         }
+        await manager.save(level);
       }
 
       const audit = manager.create(AuditLog, {

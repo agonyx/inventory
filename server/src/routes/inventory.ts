@@ -105,55 +105,57 @@ app.post('/:id/adjust', zValidator('json', adjustSchema), async (c) => {
   const id = c.req.param('id');
   const data = c.req.valid('json');
 
-  const level = await inventoryRepo().findOne({
-    where: { id },
-    relations: ['variant'],
+  const result = await AppDataSource.transaction(async (manager) => {
+    const level = await manager.findOne(InventoryLevel, {
+      where: { id },
+      relations: ['variant'],
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!level) throw new AppError(404, ErrorCode.NOT_FOUND, 'Inventory level not found');
+
+    const previousQty = level.quantity;
+    const newQty = previousQty + data.quantityChange;
+
+    if (newQty < 0) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot reduce stock below zero');
+    }
+
+    if (newQty < level.reservedQuantity) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot reduce stock below reserved quantity');
+    }
+
+    level.quantity = newQty;
+    await manager.save(level);
+
+    const adjustment = adjustmentRepo().create({
+      inventoryLevelId: id,
+      quantityChange: data.quantityChange,
+      previousQuantity: previousQty,
+      newQuantity: newQty,
+      reason: data.reason,
+      notes: data.notes || null,
+      adjustedBy: data.adjustedBy || null,
+    });
+    await manager.save(adjustment);
+
+    const audit = manager.create(AuditLog, {
+      action: AuditAction.ADJUST_STOCK,
+      entityType: 'inventory',
+      entityId: id,
+      oldValues: { quantity: previousQty },
+      newValues: { quantity: newQty },
+      performedBy: data.adjustedBy || null,
+      notes: `Stock adjusted: ${data.quantityChange > 0 ? '+' : ''}${data.quantityChange}. Reason: ${data.reason}`,
+    });
+    await manager.save(audit);
+
+    return await manager.findOne(InventoryLevel, {
+      where: { id },
+      relations: ['variant', 'variant.product', 'location'],
+    });
   });
-  if (!level) throw new AppError(404, ErrorCode.NOT_FOUND, 'Inventory level not found');
 
-  const previousQty = level.quantity;
-  const newQty = previousQty + data.quantityChange;
-
-  if (newQty < 0) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot reduce stock below zero');
-  }
-
-  if (newQty < level.reservedQuantity) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot reduce stock below reserved quantity');
-  }
-
-  level.quantity = newQty;
-  await inventoryRepo().save(level);
-
-  const adjustment = adjustmentRepo().create({
-    inventoryLevelId: id,
-    quantityChange: data.quantityChange,
-    previousQuantity: previousQty,
-    newQuantity: newQty,
-    reason: data.reason,
-    notes: data.notes || null,
-    adjustedBy: data.adjustedBy || null,
-  });
-  await adjustmentRepo().save(adjustment);
-
-  const audit = auditRepo().create({
-    action: AuditAction.ADJUST_STOCK,
-    entityType: 'inventory',
-    entityId: id,
-    oldValues: { quantity: previousQty },
-    newValues: { quantity: newQty },
-    performedBy: data.adjustedBy || null,
-    notes: `Stock adjusted: ${data.quantityChange > 0 ? '+' : ''}${data.quantityChange}. Reason: ${data.reason}`,
-  });
-  await auditRepo().save(audit);
-
-  // Reload with relations
-  const updated = await inventoryRepo().findOne({
-    where: { id },
-    relations: ['variant', 'variant.product', 'location'],
-  });
-
-  return c.json({ inventoryLevel: updated, adjustment });
+  return c.json({ inventoryLevel: result, adjustment: null });
 });
 
 export default app;

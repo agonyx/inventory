@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   useReportSummary, useStockByLocation, useOrdersOverTime,
-  useTopProducts, useInventoryValuation,
+  useTopProducts, useInventoryValuation, useOrdersByStatus,
 } from '../hooks/useReports';
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
@@ -56,13 +56,17 @@ export default function ReportsPage() {
   const { data: ordersOverTime } = useOrdersOverTime();
   const { data: topProducts } = useTopProducts(10);
   const { data: valuation } = useInventoryValuation();
+  const { data: ordersByStatusRaw } = useOrdersByStatus();
 
-  // Orders by status for donut chart
-  const ordersByStatus = [
-    { name: 'Pending', value: summary?.pendingOrders ?? 0, color: '#f59e0b' },
-    { name: 'Shipped', value: Math.max(0, (summary?.totalOrders ?? 0) - (summary?.pendingOrders ?? 0) - 5), color: '#3b82f6' },
-    { name: 'Other', value: 5, color: '#6b7280' },
-  ];
+  const STATUS_COLORS: Record<string, string> = {
+    pending: '#f59e0b', confirmed: '#8b5cf6', packed: '#06b6d4',
+    shipped: '#3b82f6', cancelled: '#6b7280',
+  };
+  const ordersByStatus = (ordersByStatusRaw ?? []).map((s) => ({
+    name: s.status.charAt(0).toUpperCase() + s.status.slice(1),
+    value: s.count,
+    color: STATUS_COLORS[s.status] ?? '#6b7280',
+  }));
 
   if (summaryLoading) {
     return (
@@ -107,7 +111,6 @@ export default function ReportsPage() {
                     return `${d.getMonth() + 1}/${d.getDate()}`;
                   }}
                 />
-                <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip
                   labelFormatter={(v) => new Date(v as string).toLocaleDateString()}
                   formatter={(val, name) => [
@@ -116,8 +119,10 @@ export default function ReportsPage() {
                   ]}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} name="Orders" dot={false} />
-                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue ($)" dot={false} yAxisId={0} />
+                <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatCurrency(v)} />
+                <Line yAxisId="left" type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2} dot={false} name="orders" />
+                <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={false} name="revenue" />
               </LineChart>
             </ResponsiveContainer>
           </div>

@@ -55,8 +55,8 @@ export default function UserForm({ user, onClose }: UserFormProps) {
         await createUser.mutateAsync(createData);
       }
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Failed to save user');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save user');
     }
   };
 

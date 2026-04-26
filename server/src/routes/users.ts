@@ -79,6 +79,10 @@ app.patch('/:id', zValidator('json', updateSchema), async (c) => {
     throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot change your own role');
   }
 
+  if (data.role && auth.role !== UserRole.ADMIN) {
+    throw new AppError(403, ErrorCode.FORBIDDEN, 'Only admins can change user roles');
+  }
+
   if (data.email && data.email !== user.email) {
     const existing = await userRepo().findOne({ where: { email: data.email } });
     if (existing) {

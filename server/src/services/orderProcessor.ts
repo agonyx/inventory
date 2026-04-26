@@ -56,30 +56,40 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
       }
 
       // Use the location with the most stock
-      let inventoryLevel = inventoryLevels[0];
       let remainingQty = item.quantity;
 
       // Try to allocate across multiple locations if needed
-      if (inventoryLevel.quantity - inventoryLevel.reservedQuantity < item.quantity) {
-        // Try to split across locations
-        let totalAvailable = 0;
-        for (const il of inventoryLevels) {
-          totalAvailable += il.quantity - il.reservedQuantity;
-        }
-        if (totalAvailable < item.quantity) {
-          throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${totalAvailable}`);
-        }
-        // Deduct from first location only (simple allocation)
-        inventoryLevel = inventoryLevels[0];
+      let primaryAvailable = inventoryLevels.reduce(
+        (sum, il) => sum + il.quantity - il.reservedQuantity, 0,
+      );
+      if (primaryAvailable < item.quantity) {
+        throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${primaryAvailable}`);
       }
 
-      const available = inventoryLevel.quantity - inventoryLevel.reservedQuantity;
-      if (available < item.quantity) {
-        throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${available}`);
+      // Allocate from locations with most stock first
+      for (const il of inventoryLevels) {
+        if (remainingQty <= 0) break;
+        const avail = il.quantity - il.reservedQuantity;
+        if (avail <= 0) continue;
+        const allocate = Math.min(avail, remainingQty);
+        il.reservedQuantity += allocate;
+        await manager.save(il);
+        remainingQty -= allocate;
+
+        const audit = manager.create(AuditLog, {
+          action: AuditAction.CREATE_ORDER,
+          entityType: 'inventory',
+          entityId: il.id,
+          oldValues: { quantity: il.quantity, reservedQuantity: il.reservedQuantity - allocate },
+          newValues: { quantity: il.quantity, reservedQuantity: il.reservedQuantity },
+          notes: `Order ${payload.externalOrderId} reserved ${allocate} of SKU ${item.sku}`,
+        });
+        await manager.save(audit);
       }
 
-      inventoryLevel.reservedQuantity += item.quantity;
-      await manager.save(inventoryLevel);
+      if (remainingQty > 0) {
+        throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Failed to fully allocate stock for SKU ${item.sku}`);
+      }
 
       const orderItem = manager.create(OrderItem, {
         orderId: order.id,
@@ -90,19 +100,8 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
       });
       await manager.save(orderItem);
       orderItems.push(orderItem);
-
-      const audit = manager.create(AuditLog, {
-        action: AuditAction.CREATE_ORDER,
-        entityType: 'inventory',
-        entityId: inventoryLevel.id,
-        oldValues: { quantity: inventoryLevel.quantity, reservedQuantity: inventoryLevel.reservedQuantity - item.quantity },
-        newValues: { quantity: inventoryLevel.quantity, reservedQuantity: inventoryLevel.reservedQuantity },
-        notes: `Order ${payload.externalOrderId} reserved ${item.quantity} of SKU ${item.sku}`,
-      });
-      await manager.save(audit);
     }
 
-    await manager.save(orderItems);
     order.items = orderItems;
 
     sendOrderConfirmation(order).catch((err) => {

@@ -47,6 +47,14 @@ const shippingSchema = z.object({
 
 const ORDER_SORT_COLUMNS = ['createdAt', 'totalAmount', 'customerName'];
 
+const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PACKED, OrderStatus.CANCELLED],
+  [OrderStatus.PACKED]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+  [OrderStatus.SHIPPED]: [],
+  [OrderStatus.CANCELLED]: [],
+};
+
 const app = new Hono();
 app.onError(errorHandler);
 
@@ -174,32 +182,35 @@ app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
     }
 
     const oldStatus = order.status;
+
+    if (!VALID_ORDER_TRANSITIONS[oldStatus].includes(status)) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR,
+        `Invalid transition: ${oldStatus} → ${status}`);
+    }
+
     order.status = status;
     await manager.save(order);
 
-    // Handle stock release based on status change
-    if (status === OrderStatus.PACKED || status === OrderStatus.SHIPPED || status === OrderStatus.CANCELLED) {
-      for (const item of order.items) {
-        if (!item.variant) continue;
+    for (const item of order.items) {
+      if (!item.variant) continue;
 
-        // Read inventory level inside transaction with lock
-        const level = await manager.findOne(InventoryLevel, {
-          where: { variantId: item.variant.id },
-          lock: { mode: 'pessimistic_write' },
-        });
-        if (!level) continue;
+      const level = await manager.findOne(InventoryLevel, {
+        where: { variantId: item.variant.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!level) continue;
 
-        if (status === OrderStatus.PACKED) {
-          level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-        } else if (status === OrderStatus.SHIPPED) {
-          level.quantity = Math.max(0, level.quantity - item.quantity);
-          level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-        } else if (status === OrderStatus.CANCELLED) {
-          level.reservedQuantity = Math.max(0, level.reservedQuantity - item.quantity);
-          level.quantity += item.quantity;
-        }
-        await manager.save(level);
+      if (oldStatus === OrderStatus.PENDING && status === OrderStatus.CANCELLED) {
+        level.reservedQuantity -= item.quantity;
+      } else if (oldStatus === OrderStatus.CONFIRMED && status === OrderStatus.PACKED) {
+        level.reservedQuantity -= item.quantity;
+      } else if (oldStatus === OrderStatus.CONFIRMED && status === OrderStatus.CANCELLED) {
+        level.reservedQuantity -= item.quantity;
+      } else if (oldStatus === OrderStatus.PACKED && status === OrderStatus.SHIPPED) {
+        level.quantity -= item.quantity;
       }
+
+      await manager.save(level);
     }
 
     const audit = manager.create(AuditLog, {

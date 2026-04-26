@@ -73,8 +73,8 @@ export default function WebhookConfigsPage() {
       setShowForm(false);
       setForm(emptyForm);
       setEditing(null);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save webhook');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save webhook');
     }
   };
 

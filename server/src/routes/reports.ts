@@ -160,4 +160,12 @@ app.get('/inventory-valuation', async (c) => {
   );
 });
 
+// GET /api/reports/orders-by-status
+app.get('/orders-by-status', async (c) => {
+  const result = await AppDataSource.manager.query(
+    `SELECT status, COUNT(*)::int as count FROM orders GROUP BY status ORDER BY count DESC`
+  );
+  return c.json(result.map((r: any) => ({ status: r.status, count: r.count })));
+});
+
 export default app;

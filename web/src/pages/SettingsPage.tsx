@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { User as UserIcon, Users, Shield, Pencil, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../hooks/useAuth';
+import { apiFetch } from '../api/client';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useChangePassword, type UserItem } from '../hooks/useUsers';
 import UserForm from '../components/UserForm';
 import ConfirmModal from '../components/ConfirmModal';
@@ -23,6 +24,13 @@ function ProfileTab() {
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [profileErr, setProfileErr] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (user) {
+      setName(user.name);
+      setEmail(user.email);
+    }
+  }, [user]);
+
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -34,23 +42,15 @@ function ProfileTab() {
     setProfileMsg(null);
     setProfileErr(null);
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch('/auth/profile', {
+      const updated = await apiFetch<{ id: string; email: string; name: string; role: string }>('/auth/profile', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ name: name.trim(), email: email.trim() }),
       });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(body || 'Failed to update profile');
-      }
-      const updated = await res.json();
-      // Update React Query cache
       queryClient.setQueryData(['auth', 'me'], updated);
       toast.success('Profile updated');
       setProfileMsg('Profile updated successfully.');
-    } catch (err: any) {
-      setProfileErr(err.message || 'Failed to update profile');
+    } catch (err: unknown) {
+      setProfileErr(err instanceof Error ? err.message : 'Failed to update profile');
     }
   };
 
@@ -75,8 +75,8 @@ function ProfileTab() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
-      setPwErr(err.message || 'Failed to change password');
+    } catch (err: unknown) {
+      setPwErr(err instanceof Error ? err.message : 'Failed to change password');
     }
   };
 

@@ -12,7 +12,7 @@ export function errorHandler(err: Error, c: Context) {
     );
   }
 
-  // Fallback for unexpected errors
+  // Fallback for unexpected errors — never expose internal details
   const status = err.message?.includes('already exists') ? 409
     : err.message?.includes('not found') ? 404
     : err.message?.includes('Cannot reduce') ? 400
@@ -23,8 +23,12 @@ export function errorHandler(err: Error, c: Context) {
     : status === 400 ? ErrorCode.VALIDATION_ERROR
     : ErrorCode.INTERNAL_ERROR;
 
+  const message = status !== 500
+    ? (err.message || 'Request failed')
+    : 'Internal Server Error';
+
   return c.json(
-    { error: { code, message: err.message || 'Internal Server Error', details: null } },
+    { error: { code, message, details: null } },
     status as 400 | 404 | 409 | 500
   );
 }
