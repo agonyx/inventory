@@ -127,7 +127,8 @@ app.post('/:id/adjust', zValidator('json', adjustSchema), async (c) => {
     level.quantity = newQty;
     await manager.save(level);
 
-    const adjustment = adjustmentRepo().create({
+    const adjustmentRepo = manager.getRepository(StockAdjustment);
+    const adjustment = adjustmentRepo.create({
       inventoryLevelId: id,
       quantityChange: data.quantityChange,
       previousQuantity: previousQty,
@@ -149,13 +150,15 @@ app.post('/:id/adjust', zValidator('json', adjustSchema), async (c) => {
     });
     await manager.save(audit);
 
-    return await manager.findOne(InventoryLevel, {
+    const updated = await manager.findOne(InventoryLevel, {
       where: { id },
       relations: ['variant', 'variant.product', 'location'],
     });
+
+    return { inventoryLevel: updated, adjustment };
   });
 
-  return c.json({ inventoryLevel: result, adjustment: null });
+  return c.json(result);
 });
 
 export default app;
