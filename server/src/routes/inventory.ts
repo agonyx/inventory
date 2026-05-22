@@ -37,6 +37,33 @@ app.get('/', async (c) => {
   if (query.locationId) where.locationId = query.locationId;
   if (query.productId) where.variant = { productId: query.productId };
 
+  if (query.lowStock === 'true' || query.lowStock === '1') {
+    const qb = inventoryRepo().createQueryBuilder('il')
+      .leftJoinAndSelect('il.variant', 'v')
+      .leftJoinAndSelect('v.product', 'p')
+      .leftJoinAndSelect('il.location', 'l')
+      .where('p.lowStockThreshold IS NOT NULL')
+      .andWhere('il.quantity <= p.lowStockThreshold');
+
+    if (query.locationId) {
+      qb.andWhere('il.locationId = :locationId', { locationId: query.locationId });
+    }
+    if (query.productId) {
+      qb.andWhere('v.productId = :productId', { productId: query.productId });
+    }
+
+    const [levels, total] = await qb
+      .orderBy(`il.${sortBy}`, sortDir)
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return c.json({
+      data: levels,
+      pagination: buildPaginationResponse(page, limit, total),
+    });
+  }
+
   const [levels, total] = await inventoryRepo().findAndCount({
     where: Object.keys(where).length > 0 ? where : {},
     relations: ['variant', 'variant.product', 'location'],
@@ -44,16 +71,8 @@ app.get('/', async (c) => {
     ...paginate(page, limit),
   });
 
-  // Filter lowStock in JS: quantity <= variant.product.lowStockThreshold
-  let data = levels;
-  if (query.lowStock === 'true' || query.lowStock === '1') {
-    data = levels.filter(
-      (level) => level.variant?.product?.lowStockThreshold != null && level.quantity <= level.variant.product.lowStockThreshold,
-    );
-  }
-
   return c.json({
-    data,
+    data: levels,
     pagination: buildPaginationResponse(page, limit, total),
   });
 });

@@ -8,7 +8,7 @@ export interface InventoryLevel {
   locationId: string;
   quantity: number;
   reservedQuantity: number;
-  variant: { id: string; name: string; sku: string; barcode?: string | null; product: { id: string; name: string } };
+  variant: { id: string; name: string; sku: string; barcode?: string | null; product: { id: string; name: string; lowStockThreshold?: number } };
   location: { id: string; name: string; type: string | null };
 }
 

@@ -140,7 +140,7 @@ app.post('/', zValidator('json', createPOSchema), async (c) => {
     await manager.save(PurchaseOrderItem, items);
 
     await manager.save(AuditLog, manager.create(AuditLog, {
-      action: 'create_purchase_order' as AuditAction,
+      action: AuditAction.CREATE_PURCHASE_ORDER,
       entityType: 'purchase_order',
       entityId: saved.id,
       newValues: { supplierId: data.supplierId, itemCount: data.items.length },
@@ -166,7 +166,7 @@ app.patch('/:id', zValidator('json', updatePOSchema), async (c) => {
   await poRepo().save(po);
 
   await auditRepo().save(auditRepo().create({
-    action: 'update_purchase_order' as AuditAction,
+    action: AuditAction.UPDATE_PURCHASE_ORDER,
     entityType: 'purchase_order',
     entityId: id,
     newValues: data,
@@ -187,7 +187,7 @@ app.post('/:id/send', async (c) => {
   await poRepo().save(po);
 
   await auditRepo().save(auditRepo().create({
-    action: 'update_purchase_order' as AuditAction,
+    action: AuditAction.UPDATE_PURCHASE_ORDER,
     entityType: 'purchase_order',
     entityId: id,
     newValues: { status: 'sent' },
@@ -254,7 +254,7 @@ app.post('/:id/receive', zValidator('json', receiveSchema), async (c) => {
     await manager.save(PurchaseOrder, po);
 
     await manager.save(AuditLog, manager.create(AuditLog, {
-      action: 'receive_purchase_order' as AuditAction,
+      action: AuditAction.RECEIVE_PURCHASE_ORDER,
       entityType: 'purchase_order',
       entityId: id,
       newValues: { status: po.status, receivedItems: data.items },
@@ -283,7 +283,7 @@ app.post('/:id/cancel', async (c) => {
   await poRepo().save(po);
 
   await auditRepo().save(auditRepo().create({
-    action: 'cancel_purchase_order' as AuditAction,
+    action: AuditAction.CANCEL_PURCHASE_ORDER,
     entityType: 'purchase_order',
     entityId: id,
     newValues: { status: 'cancelled' },

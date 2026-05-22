@@ -15,6 +15,7 @@ import { errorHandler } from '../middleware/error-handler';
 import { parsePagination, buildPaginationResponse } from '../utils/pagination';
 import { parseSort } from '../utils/sort';
 import { exportToCsv, getCsvFilename } from '../utils/csv-export';
+import { escapeLike } from '../utils/helpers';
 
 const productRepo = () => AppDataSource.getRepository(Product);
 const variantRepo = () => AppDataSource.getRepository(ProductVariant);
@@ -26,6 +27,7 @@ const ALLOWED_SORT_COLUMNS = ['name', 'sku', 'category', 'price', 'createdAt'];
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 
 if (!existsSync(UPLOADS_DIR)) {
   mkdir(UPLOADS_DIR, { recursive: true }).catch(() => {});
@@ -84,7 +86,7 @@ app.get('/', async (c) => {
   let barcodeProductIds: string[] | null = null;
   if (barcode) {
     const matchingVariants = await variantRepo().find({
-      where: { barcode: ILike(`%${barcode}%`) },
+      where: { barcode: ILike(`%${escapeLike(barcode)}%`) },
       select: ['productId'],
     });
     const uniqueIds = [...new Set(matchingVariants.map((v) => v.productId))];
@@ -107,8 +109,8 @@ app.get('/', async (c) => {
 
     if (search) {
       qb.andWhere(new Brackets(qb2 => {
-        qb2.where('p.name ILIKE :search', { search: `%${search}%` })
-          .orWhere('p.sku ILIKE :search', { search: `%${search}%` });
+        qb2.where('p.name ILIKE :search', { search: `%${escapeLike(search)}%` })
+          .orWhere('p.sku ILIKE :search', { search: `%${escapeLike(search)}%` });
       }));
     }
     if (category) {
@@ -153,13 +155,13 @@ app.get('/', async (c) => {
     let findWhere: any;
     if (search) {
       findWhere = [
-        { ...where, name: ILike(`%${search}%`) },
-        { ...where, sku: ILike(`%${search}%`) },
+        { ...where, name: ILike(`%${escapeLike(search)}%`) },
+        { ...where, sku: ILike(`%${escapeLike(search)}%`) },
       ];
       if (category) {
         findWhere = [
-          { name: ILike(`%${search}%`), category },
-          { sku: ILike(`%${search}%`), category },
+          { name: ILike(`%${escapeLike(search)}%`), category },
+          { sku: ILike(`%${escapeLike(search)}%`), category },
         ];
       }
     } else {
@@ -212,12 +214,12 @@ app.get('/export', async (c) => {
   if (search) {
     findWhere = category
       ? [
-          { name: ILike(`%${search}%`), category },
-          { sku: ILike(`%${search}%`), category },
+          { name: ILike(`%${escapeLike(search)}%`), category },
+          { sku: ILike(`%${escapeLike(search)}%`), category },
         ]
       : [
-          { name: ILike(`%${search}%`) },
-          { sku: ILike(`%${search}%`) },
+          { name: ILike(`%${escapeLike(search)}%`) },
+          { sku: ILike(`%${escapeLike(search)}%`) },
         ];
   } else {
     findWhere = category ? { category } : {};
@@ -279,6 +281,19 @@ app.post('/', zValidator('json', createSchema), async (c) => {
   const data = c.req.valid('json');
   const saved = await AppDataSource.transaction(async (manager) => {
     const rawVariants = data.variants || [];
+
+    const existingProduct = await manager.findOne(Product, { where: { sku: data.sku } });
+    if (existingProduct) {
+      throw new AppError(409, ErrorCode.CONFLICT, 'SKU already exists');
+    }
+
+    for (const v of rawVariants) {
+      const existingVariant = await manager.findOne(ProductVariant, { where: { sku: v.sku } });
+      if (existingVariant) {
+        throw new AppError(409, ErrorCode.CONFLICT, 'SKU already exists');
+      }
+    }
+
     const product = manager.create(Product, data);
     (product as any).variants = [];
     await manager.save(Product, product);
@@ -370,6 +385,16 @@ app.post('/:id/variants', zValidator('json', variantCreateSchema), async (c) => 
 
   const product = await productRepo().findOne({ where: { id: productId } });
   if (!product) throw new AppError(404, ErrorCode.NOT_FOUND, 'Product not found');
+
+  const existingVariant = await variantRepo().findOne({ where: { sku: data.sku } });
+  if (existingVariant) {
+    throw new AppError(409, ErrorCode.CONFLICT, 'SKU already exists');
+  }
+
+  const existingProductSku = await productRepo().findOne({ where: { sku: data.sku } });
+  if (existingProductSku) {
+    throw new AppError(409, ErrorCode.CONFLICT, 'SKU already exists');
+  }
 
   const variant = variantRepo().create({ ...data, productId });
   await variantRepo().save(variant);
@@ -476,12 +501,18 @@ app.post('/:id/images', async (c) => {
     throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Only image files (jpg, png, webp, gif) are allowed');
   }
 
-  const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
-  const filename = `product-${id}-${Date.now()}.${ext}`;
+  const originalName = file.name;
+  const ext = path.extname(originalName).toLowerCase();
+  const filename = `product-${id}-${Date.now()}${ext}`;
   const filepath = path.join(UPLOADS_DIR, filename);
 
   const arrayBuffer = await file.arrayBuffer();
   await writeFile(filepath, Buffer.from(arrayBuffer));
+
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    await unlink(filepath).catch(() => {});
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Only image files (jpg, jpeg, png, webp, gif) are allowed');
+  }
 
   const imagePath = `/uploads/${filename}`;
   product.images = [...(product.images || []), imagePath];

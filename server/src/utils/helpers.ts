@@ -18,3 +18,7 @@ export function truncateString(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength - 1) + "\u2026";
 }
+
+export function escapeLike(str: string): string {
+  return str.replace(/[%_\\]/g, '\\$&');
+}

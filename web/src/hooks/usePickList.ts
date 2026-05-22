@@ -18,6 +18,7 @@ export function usePickList() {
   return useQuery({
     queryKey: ['pick-list'],
     queryFn: () => apiFetch<PickListItem[]>('/pick-list'),
-    refetchInterval: 10000, // Auto-refresh every 10s
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
 }

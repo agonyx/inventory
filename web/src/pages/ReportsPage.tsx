@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -68,6 +68,15 @@ export default function ReportsPage() {
     color: STATUS_COLORS[s.status] ?? '#6b7280',
   }));
 
+  const ordersTimeTitle = useMemo(() => {
+    const arr = ordersOverTime ?? [];
+    if (arr.length < 2) return 'Orders Over Time';
+    const first = new Date(arr[0].period);
+    const last = new Date(arr[arr.length - 1].period);
+    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `Orders Over Time (${fmt(first)} \u2013 ${fmt(last)})`;
+  }, [ordersOverTime]);
+
   if (summaryLoading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -98,7 +107,7 @@ export default function ReportsPage() {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Orders Over Time */}
-        <ChartCard title="Orders Over Time (Last 30 Days)">
+        <ChartCard title={ordersTimeTitle}>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={ordersOverTime ?? []}>

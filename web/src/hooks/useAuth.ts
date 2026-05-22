@@ -34,6 +34,7 @@ export function useAuth() {
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' },
       });
     },
+    enabled: !!localStorage.getItem('access_token'),
     retry: false,
     staleTime: 5 * 60 * 1000,
   });

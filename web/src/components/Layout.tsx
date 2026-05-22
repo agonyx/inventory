@@ -36,6 +36,7 @@ export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const mobileNotifRef = useRef<HTMLDivElement>(null);
   const { data: user } = useAuth();
   const logout = useLogout();
   const { data: unreadData } = useUnreadCount();
@@ -47,7 +48,10 @@ export default function Layout() {
   // Close notification dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+      if (
+        (notifRef.current && !notifRef.current.contains(e.target as Node)) &&
+        (mobileNotifRef.current && !mobileNotifRef.current.contains(e.target as Node))
+      ) {
         setNotifOpen(false);
       }
     }
@@ -171,7 +175,7 @@ export default function Layout() {
 
           {/* Mobile hamburger button + notifications */}
           <div className="flex items-center gap-2 lg:hidden">
-            <div className="relative" ref={notifRef}>
+            <div className="relative" ref={mobileNotifRef}>
               <button
                 onClick={() => setNotifOpen((prev) => !prev)}
                 className="relative p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 rounded-md transition"

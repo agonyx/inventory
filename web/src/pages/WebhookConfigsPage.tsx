@@ -64,7 +64,11 @@ export default function WebhookConfigsPage() {
 
     try {
       if (editing) {
-        await updateMut.mutateAsync({ id: editing.id, ...form });
+        const payload: { id: string; url?: string; events?: string[]; secret?: string; isActive?: boolean } = { id: editing.id, url: form.url, events: form.events, isActive: form.isActive };
+        if (form.secret && !/^•+$/.test(form.secret)) {
+          payload.secret = form.secret;
+        }
+        await updateMut.mutateAsync(payload);
         toast.success('Webhook updated');
       } else {
         await createMut.mutateAsync(form);
@@ -210,7 +214,7 @@ export default function WebhookConfigsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Secret (optional)</label>
                 <input
-                  type="text"
+                  type="password"
                   value={form.secret}
                   onChange={(e) => setForm((prev) => ({ ...prev, secret: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

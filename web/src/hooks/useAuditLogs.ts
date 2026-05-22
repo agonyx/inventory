@@ -36,8 +36,8 @@ export function useAuditLogs(filters: {
   to?: string;
 }) {
   const params = new URLSearchParams();
-  if (filters.page) params.set('page', String(filters.page));
-  if (filters.limit) params.set('limit', String(filters.limit));
+  if (filters.page != null) params.set('page', String(filters.page));
+  if (filters.limit != null) params.set('limit', String(filters.limit));
   if (filters.entityType) params.set('entityType', filters.entityType);
   if (filters.entityId) params.set('entityId', filters.entityId);
   if (filters.action) params.set('action', filters.action);

@@ -75,7 +75,7 @@ function CreateReturnModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { data: ordersData } = useOrders({ limit: '50' });
+  const { data: ordersData } = useOrders({ limit: '200' });
   const createReturn = useCreateReturn();
 
   const [orderId, setOrderId] = useState('');
@@ -171,7 +171,7 @@ function CreateReturnModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">Items</label>
               <div className="space-y-2">
                 {selectedOrder.items.map((item) => {
-                  const sel = selectedItems[item.variantId || ''] || {
+                  const sel = selectedItems[item.variantId ?? 'unknown'] || {
                     quantity: 0,
                     condition: 'new',
                   };
@@ -184,7 +184,7 @@ function CreateReturnModal({
                           if (e.target.checked) {
                             setSelectedItems((prev) => ({
                               ...prev,
-                              [item.variantId || '']: {
+                              [item.variantId ?? 'unknown']: {
                                 quantity: item.quantity,
                                 condition: 'new',
                               },
@@ -192,7 +192,7 @@ function CreateReturnModal({
                           } else {
                             setSelectedItems((prev) => {
                               const next = { ...prev };
-                              delete next[item.variantId || ''];
+                              delete next[item.variantId ?? 'unknown'];
                               return next;
                             });
                           }
@@ -212,8 +212,8 @@ function CreateReturnModal({
                             onChange={(e) =>
                               setSelectedItems((prev) => ({
                                 ...prev,
-                                [item.variantId || '']: {
-                                  ...prev[item.variantId || ''],
+                                [item.variantId ?? 'unknown']: {
+                                  ...prev[item.variantId ?? 'unknown'],
                                   quantity: Math.min(Number(e.target.value), item.quantity),
                                 },
                               }))
@@ -225,8 +225,8 @@ function CreateReturnModal({
                             onChange={(e) =>
                               setSelectedItems((prev) => ({
                                 ...prev,
-                                [item.variantId || '']: {
-                                  ...prev[item.variantId || ''],
+                                [item.variantId ?? 'unknown']: {
+                                  ...prev[item.variantId ?? 'unknown'],
                                   condition: e.target.value,
                                 },
                               }))

@@ -200,7 +200,6 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
   const removeVariantRow = (index: number) => {
     const variant = variants[index];
 
-    // In edit mode, check if the variant has inventory before removing
     if (isEdit && product && variant.id) {
       const existingVariant = product.variants.find((v) => v.id === variant.id);
       if (existingVariant) {
@@ -212,10 +211,14 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
           toast.warning('Variant has inventory');
           return;
         }
-        // Delete from backend
         apiFetch(`/products/${product.id}/variants/${variant.id}`, { method: 'DELETE' })
-          .then(() => { qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Variant removed'); })
+          .then(() => {
+            setVariants((prev) => prev.filter((_, i) => i !== index));
+            qc.invalidateQueries({ queryKey: ['products'] });
+            toast.success('Variant removed');
+          })
           .catch(() => toast.error('Failed to remove variant'));
+        return;
       }
     }
 
@@ -278,6 +281,7 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
         await updateProduct.mutateAsync({ id: product.id, ...productFields });
 
         // Also create any new variants added during edit
+        // And update existing variants that changed
         if (product) {
           for (const v of variants) {
             if (v._isNew && v.name.trim() && v.sku.trim()) {
@@ -290,6 +294,24 @@ export default function ProductForm({ product, onClose, onSuccess }: ProductForm
                   description: v.description.trim() || null,
                 }),
               });
+            } else if (v.id && v.name.trim() && v.sku.trim()) {
+              const original = product.variants.find((ov) => ov.id === v.id);
+              if (original && (
+                original.name !== v.name.trim() ||
+                original.sku !== v.sku.trim() ||
+                (original.barcode || '') !== v.barcode.trim() ||
+                (original.description || '') !== v.description.trim()
+              )) {
+                await apiFetch(`/products/${product.id}/variants/${v.id}`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({
+                    name: v.name.trim(),
+                    sku: v.sku.trim(),
+                    barcode: v.barcode.trim() || null,
+                    description: v.description.trim() || null,
+                  }),
+                });
+              }
             }
           }
         }

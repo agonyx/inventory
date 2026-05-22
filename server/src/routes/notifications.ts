@@ -1,9 +1,12 @@
 import { Hono } from 'hono';
 import { AppDataSource } from '../data-source';
 import { Notification } from '../entities/Notification';
+import { AppError, ErrorCode } from '../errors/app-error';
+import { errorHandler } from '../middleware/error-handler';
 import { parsePagination, buildPaginationResponse, paginate } from '../utils/pagination';
 
 const app = new Hono();
+app.onError(errorHandler);
 
 const notifRepo = () => AppDataSource.getRepository(Notification);
 
@@ -44,7 +47,7 @@ app.patch('/:id/read', async (c) => {
   const id = c.req.param('id');
   const notif = await notifRepo().findOne({ where: { id } });
   if (!notif) {
-    return c.json({ error: 'Notification not found' }, 404);
+    throw new AppError(404, ErrorCode.NOT_FOUND, 'Notification not found');
   }
   notif.read = true;
   await notifRepo().save(notif);

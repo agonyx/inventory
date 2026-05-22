@@ -36,6 +36,7 @@ export function requireRole(...roles: UserRole[]): MiddlewareHandler {
     }
 
     c.set('auth', { ...auth, role: freshRole });
+    c.set('dbUser', user);
     await next();
   };
 }
@@ -47,8 +48,11 @@ export function requirePermission(resource: string): MiddlewareHandler {
       throw new AppError(401, ErrorCode.UNAUTHORIZED, 'Missing authorization');
     }
 
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOne({ where: { id: auth.userId }, select: ['id', 'role'] });
+    let user: { id: string; role: UserRole } | null = c.get('dbUser');
+    if (!user) {
+      const userRepo = AppDataSource.getRepository(User);
+      user = await userRepo.findOne({ where: { id: auth.userId }, select: ['id', 'role'] });
+    }
     if (!user) {
       throw new AppError(401, ErrorCode.UNAUTHORIZED, 'User not found');
     }

@@ -21,7 +21,7 @@ app.get('/summary', async (c) => {
     AppDataSource.manager.query('SELECT COUNT(*)::int as "totalProducts" FROM products'),
     AppDataSource.manager.query('SELECT COUNT(*)::int as "totalOrders" FROM orders'),
     AppDataSource.manager.query('SELECT COUNT(*)::int as "pendingOrders" FROM orders WHERE status = $1', ['pending']),
-    AppDataSource.manager.query('SELECT COUNT(*)::int as "ordersToday" FROM orders WHERE DATE("createdAt") = CURRENT_DATE'),
+     AppDataSource.manager.query('SELECT COUNT(*)::int as "ordersToday" FROM orders WHERE "createdAt" >= CURRENT_DATE AND "createdAt" < CURRENT_DATE + INTERVAL \'1 day\''),
     AppDataSource.manager.query(
       `SELECT COUNT(*)::int as "lowStockCount" FROM inventory_levels il
        JOIN product_variants pv ON pv.id = il."variantId"
@@ -141,8 +141,8 @@ app.get('/inventory-valuation', async (c) => {
             COALESCE(SUM(il.quantity), 0)::int as "totalStock",
             p.price as "unitPrice",
             COALESCE(SUM(il.quantity * p.price)::float, 0) as "totalValue"
-     FROM products p
-     JOIN product_variants pv ON pv."productId" = p.id
+      FROM products p
+      LEFT JOIN product_variants pv ON pv."productId" = p.id
      LEFT JOIN inventory_levels il ON il."variantId" = pv.id
      GROUP BY p.id, p.name, p.sku, p.price
      ORDER BY "totalValue" DESC`

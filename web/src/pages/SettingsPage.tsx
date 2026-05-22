@@ -21,7 +21,6 @@ function ProfileTab() {
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [profileErr, setProfileErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,12 +33,10 @@ function ProfileTab() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [pwErr, setPwErr] = useState<string | null>(null);
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileMsg(null);
     setProfileErr(null);
     try {
       const updated = await apiFetch<{ id: string; email: string; name: string; role: string }>('/auth/profile', {
@@ -48,7 +45,6 @@ function ProfileTab() {
       });
       queryClient.setQueryData(['auth', 'me'], updated);
       toast.success('Profile updated');
-      setProfileMsg('Profile updated successfully.');
     } catch (err: unknown) {
       setProfileErr(err instanceof Error ? err.message : 'Failed to update profile');
     }
@@ -56,7 +52,6 @@ function ProfileTab() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPwMsg(null);
     setPwErr(null);
 
     if (newPassword.length < 6) {
@@ -71,7 +66,6 @@ function ProfileTab() {
     try {
       await changePassword.mutateAsync({ currentPassword, newPassword });
       toast.success('Password changed');
-      setPwMsg('Password changed successfully.');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -87,9 +81,6 @@ function ProfileTab() {
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Information</h3>
         <form onSubmit={handleProfileSave} className="max-w-md space-y-4">
-          {profileMsg && (
-            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">{profileMsg}</div>
-          )}
           {profileErr && (
             <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{profileErr}</div>
           )}
@@ -134,9 +125,6 @@ function ProfileTab() {
       <div className="border-t border-gray-200 pt-8">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
         <form onSubmit={handleChangePassword} className="max-w-md space-y-4">
-          {pwMsg && (
-            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">{pwMsg}</div>
-          )}
           {pwErr && (
             <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{pwErr}</div>
           )}

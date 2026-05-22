@@ -7,15 +7,14 @@ import { Return, ReturnStatus } from '../entities/Return';
 import { ReturnItem, ReturnItemCondition } from '../entities/ReturnItem';
 import { InventoryLevel } from '../entities/InventoryLevel';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
+import { Order } from '../entities/Order';
 import { AppError, ErrorCode } from '../errors/app-error';
 import { errorHandler } from '../middleware/error-handler';
 import { parsePagination, buildPaginationResponse, paginate } from '../utils/pagination';
 import { parseSort } from '../utils/sort';
+import { escapeLike } from '../utils/helpers';
 
 const returnRepo = () => AppDataSource.getRepository(Return);
-const returnItemRepo = () => AppDataSource.getRepository(ReturnItem);
-const inventoryRepo = () => AppDataSource.getRepository(InventoryLevel);
-const auditRepo = () => AppDataSource.getRepository(AuditLog);
 
 const createReturnSchema = z.object({
   orderId: z.string().uuid(),
@@ -44,7 +43,7 @@ app.get('/', async (c) => {
 
   let where: any;
   if (query.search) {
-    const pattern = Like(`%${query.search}%`);
+    const pattern = Like(`%${escapeLike(query.search)}%`);
     where = [
       { ...conditions, reason: pattern },
       { ...conditions, notes: pattern },
@@ -70,7 +69,7 @@ app.post('/', zValidator('json', createReturnSchema), async (c) => {
   const body = c.req.valid('json');
 
   const result = await AppDataSource.transaction(async (manager) => {
-    const order = await manager.findOne('Order', {
+    const order = await manager.findOne(Order, {
       where: { id: body.orderId },
     });
     if (!order) {

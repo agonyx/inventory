@@ -62,7 +62,7 @@ export default function InventoryPage() {
       dataRef.current = data?.data;
       setSelectedIds(new Set());
     }
-  });
+  }, [data?.data]);
 
   // Stock adjust dialog
   const [adjustTarget, setAdjustTarget] = useState<InventoryLevel | null>(null);
@@ -148,7 +148,7 @@ export default function InventoryPage() {
           <div className="md:hidden space-y-3">
             {inventoryLevels.map((level) => {
               const available = level.quantity - level.reservedQuantity;
-              const isLow = available <= 5;
+              const isLow = available <= (level.variant?.product?.lowStockThreshold ?? 5);
               const isSelected = selectedIds.has(level.id);
               return (
                 <div
@@ -364,7 +364,7 @@ export default function InventoryPage() {
           product={{
             id: adjustTarget.variant?.product?.id || '',
             name: adjustTarget.variant?.product?.name || '',
-            lowStockThreshold: 5,
+            lowStockThreshold: adjustTarget.variant?.product?.lowStockThreshold ?? 5,
           } as any}
           onClose={() => setAdjustTarget(null)}
         />

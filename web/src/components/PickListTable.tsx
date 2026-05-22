@@ -98,7 +98,9 @@ export default function PickListTable() {
             return (
               <div key={loc} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 {/* Location header */}
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggleLocation(loc)}
                   className="w-full flex items-center gap-3 px-5 py-3 bg-gray-50 hover:bg-gray-100 transition text-left"
                 >
@@ -119,7 +121,7 @@ export default function PickListTable() {
                     <Download size={14} />
                     Download PDF
                   </button>
-                </button>
+                </div>
 
                 {!isCollapsed && (
                   <>

@@ -90,7 +90,7 @@ export default function ProductsPage() {
       productsDataRef.current = data?.data;
       setSelectedIds(new Set());
     }
-  });
+  }, [data?.data]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -207,11 +207,6 @@ export default function ProductsPage() {
     const qs = new URLSearchParams(params).toString();
     await openAuthenticatedUrl('/products/export' + (qs ? '?' + qs : ''));
   };
-
-  const exportParams = useMemo(() => {
-    const qs = new URLSearchParams(params).toString();
-    return qs ? '?' + qs : '';
-  }, [params]);
 
   return (
     <div className="space-y-4">

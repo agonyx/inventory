@@ -1,6 +1,14 @@
+function sanitizeCsvCell(val: any): string {
+  const s = val === null || val === undefined ? '' : String(val);
+  if (/^[=+\-@\t\r]/.test(s)) {
+    return `'${s}`;
+  }
+  return s;
+}
+
 export function exportToCsv(headers: string[], rows: Record<string, any>[]): string {
   const escape = (val: any): string => {
-    const s = val === null || val === undefined ? '' : String(val);
+    const s = sanitizeCsvCell(val);
     if (s.includes(',') || s.includes('"') || s.includes('\n')) {
       return `"${s.replace(/"/g, '""')}"`;
     }

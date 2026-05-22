@@ -368,6 +368,7 @@ function CreatePOModal({
   const [items, setItems] = useState<CreateFormItem[]>([
     { variantId: '', quantity: 1, unitCost: 0 },
   ]);
+  const [itemKeys, setItemKeys] = useState([Math.random().toString(36).slice(2)]);
   const [error, setError] = useState<string | null>(null);
 
   const allVariants = products.flatMap((p) =>
@@ -380,11 +381,13 @@ function CreatePOModal({
 
   const addItem = () => {
     setItems([...items, { variantId: '', quantity: 1, unitCost: 0 }]);
+    setItemKeys([...itemKeys, Math.random().toString(36).slice(2)]);
   };
 
   const removeItem = (index: number) => {
     if (items.length <= 1) return;
     setItems(items.filter((_, i) => i !== index));
+    setItemKeys(itemKeys.filter((_, i) => i !== index));
   };
 
   const updateItem = (index: number, field: keyof CreateFormItem, value: string | number) => {
@@ -471,7 +474,7 @@ function CreatePOModal({
             </div>
             <div className="space-y-2">
               {items.map((item, index) => (
-                <div key={index} className="flex items-start gap-2">
+                <div key={itemKeys[index]} className="flex items-start gap-2">
                   <select
                     value={item.variantId}
                     onChange={(e) => updateItem(index, 'variantId', e.target.value)}

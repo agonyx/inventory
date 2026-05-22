@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useCreateUser, useUpdateUser, type UserItem } from '../hooks/useUsers';
 
@@ -37,6 +37,15 @@ export default function UserForm({ user, onClose }: UserFormProps) {
   const [createData, setCreateData] = useState<CreateFormData>(emptyCreate);
   const [editData, setEditData] = useState<EditFormData>(user ? emptyEdit(user) : { name: '', email: '', role: 'warehouse' });
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setEditData(emptyEdit(user));
+    } else {
+      setEditData({ name: '', email: '', role: 'warehouse' });
+      setCreateData(emptyCreate);
+    }
+  }, [user?.id]);
 
   const isPending = createUser.isPending || updateUser.isPending;
 

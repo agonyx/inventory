@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, MapPin, X } from 'lucide-react';
 import { toast } from 'sonner';
 import useUrlFilters from '../hooks/useUrlFilters';
@@ -81,11 +81,11 @@ export default function LocationsPage() {
     setFormOpen(true);
   };
 
-  const closeForm = () => {
+  const closeForm = useCallback(() => {
     setFormOpen(false);
     setEditingLocation(null);
     setFormError(null);
-  };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,8 +98,8 @@ export default function LocationsPage() {
 
     const payload: Partial<Location> = {
       name: form.name.trim(),
-      type: form.type.trim() || null,
-      address: form.address.trim() || null,
+      type: form.type.trim() || undefined,
+      address: form.address.trim() || undefined,
     };
 
     try {
@@ -138,7 +138,7 @@ export default function LocationsPage() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [formOpen]);
+  }, [formOpen, closeForm]);
 
   if (isLoading) {
     return (

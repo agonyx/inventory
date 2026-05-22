@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuditLogs } from '../hooks/useAuditLogs';
 import { ChevronLeft, ChevronRight, Loader2, FileText } from 'lucide-react';
 
@@ -13,14 +13,25 @@ export default function AuditLogsPage() {
     action: '',
     performedBy: '',
   });
+  const timerRef = useRef<number>();
+  const [searchInput, setSearchInput] = useState('');
 
   const { data, isLoading } = useAuditLogs({ page, limit, ...filters });
   const logs = data?.data || [];
   const pagination = data?.pagination;
 
   const updateFilter = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    setPage(1);
+    if (key === 'performedBy') {
+      setSearchInput(value);
+      clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => {
+        setFilters((prev) => ({ ...prev, performedBy: value }));
+        setPage(1);
+      }, 300);
+    } else {
+      setFilters((prev) => ({ ...prev, [key]: value }));
+      setPage(1);
+    }
   };
 
   return (
@@ -52,8 +63,8 @@ export default function AuditLogsPage() {
           </select>
           <input
             type="text"
-            value={filters.performedBy}
-            onChange={(e) => updateFilter('performedBy', e.target.value)}
+            value={searchInput}
+            onChange={(e) => { setSearchInput(e.target.value); updateFilter('performedBy', e.target.value); }}
             placeholder="Performed by..."
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
           />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Truck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import useUrlFilters from '../hooks/useUrlFilters';
@@ -77,11 +77,11 @@ export default function SuppliersPage() {
     setFormOpen(true);
   };
 
-  const closeForm = () => {
+  const closeForm = useCallback(() => {
     setFormOpen(false);
     setEditingSupplier(null);
     setFormError(null);
-  };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +136,7 @@ export default function SuppliersPage() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [formOpen]);
+  }, [formOpen, closeForm]);
 
   if (isLoading) {
     return (

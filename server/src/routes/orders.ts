@@ -12,6 +12,7 @@ import { errorHandler } from '../middleware/error-handler';
 import { parsePagination, buildPaginationResponse, paginate } from '../utils/pagination';
 import { parseSort } from '../utils/sort';
 import { exportToCsv, getCsvFilename } from '../utils/csv-export';
+import { escapeLike } from '../utils/helpers';
 import {
   createPdf,
   pdfToBuffer,
@@ -81,7 +82,7 @@ app.get('/', async (c) => {
   // Search with ILIKE (OR across fields)
   let where: any;
   if (query.search) {
-    const pattern = Like(`%${query.search}%`);
+    const pattern = Like(`%${escapeLike(query.search)}%`);
     where = [
       { ...conditions, externalOrderId: pattern },
       { ...conditions, customerName: pattern },
@@ -123,7 +124,7 @@ app.get('/export', async (c) => {
 
   let where: any;
   if (query.search) {
-    const pattern = Like(`%${query.search}%`);
+    const pattern = Like(`%${escapeLike(query.search)}%`);
     where = [
       { ...conditions, externalOrderId: pattern },
       { ...conditions, customerName: pattern },

@@ -99,14 +99,14 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
       orderItems.push(orderItem);
     }
 
-    order.items = orderItems;
-
-    return order;
+    return { order, items: orderItems };
   });
 
-  sendOrderConfirmation(result).catch((err) => {
+  result.order.items = result.items;
+
+  sendOrderConfirmation(result.order).catch((err) => {
     console.error('[orderProcessor] Failed to send order confirmation email:', err);
   });
 
-  return result;
+  return result.order;
 }

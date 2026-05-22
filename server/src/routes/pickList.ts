@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { generatePickList, type PickListItem } from '../services/pickList';
 import { AppDataSource } from '../data-source';
 import { ProductVariant } from '../entities/ProductVariant';
+import { errorHandler } from '../middleware/error-handler';
 import {
   createPdf,
   pdfToBuffer,
@@ -14,6 +15,7 @@ import {
 } from '../utils/pdf';
 
 const app = new Hono();
+app.onError(errorHandler);
 
 app.get('/', async (c) => {
   const pickList = await generatePickList();

@@ -119,10 +119,11 @@ export default function useUrlFilters(): UseUrlFiltersReturn {
 
   const setLimit = useCallback(
     (newLimit: number) => {
+      const clamped = Math.max(1, newLimit);
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
-          next.set('limit', String(newLimit));
+          next.set('limit', String(clamped));
           next.delete('page');
           return next;
         },

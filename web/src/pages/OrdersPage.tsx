@@ -54,6 +54,22 @@ const CARRIER_URLS: Record<string, (tracking: string) => string> = {
   royal_mail: (t) => `https://www.royalmail.com/track-your-item/?trackNumber=${encodeURIComponent(t)}`,
 };
 
+const NEXT_STATUS: Record<string, string> = {
+  pending: 'confirmed',
+  confirmed: 'packed',
+  packed: 'shipped',
+  shipped: 'shipped',
+  cancelled: 'cancelled',
+};
+
+const NEXT_LABEL: Record<string, string> = {
+  pending: 'Confirm',
+  confirmed: 'Pack',
+  packed: 'Ship',
+  shipped: 'Done',
+  cancelled: 'Cancelled',
+};
+
 function StatusBadge({ status }: { status: string }) {
   const color = STATUS_COLORS[status] || 'bg-gray-100 text-gray-700';
   return (
@@ -236,7 +252,7 @@ export default function OrdersPage() {
       ordersDataRef.current = data?.data;
       setSelectedIds(new Set());
     }
-  });
+  }, [data?.data]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -383,21 +399,7 @@ export default function OrdersPage() {
               {orders.map((order) => {
                 const isExpanded = expandedId === order.id;
                 const canAdvance = order.status !== 'shipped' && order.status !== 'cancelled';
-                const nextStatus: Record<string, string> = {
-                  pending: 'confirmed',
-                  confirmed: 'packed',
-                  packed: 'shipped',
-                  shipped: 'shipped',
-                  cancelled: 'cancelled',
-                };
-                const nextLabel: Record<string, string> = {
-                  pending: 'Confirm',
-                  confirmed: 'Pack',
-                  packed: 'Ship',
-                  shipped: 'Done',
-                  cancelled: 'Cancelled',
-                };
-                const next = nextStatus[order.status];
+                const next = NEXT_STATUS[order.status];
                 const isSelected = selectedIds.has(order.id);
 
                 return (
@@ -461,7 +463,7 @@ export default function OrdersPage() {
                               disabled={updateStatus.isPending}
                               className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                             >
-                              {nextLabel[order.status]}
+                              {NEXT_LABEL[order.status]}
                             </button>
                           )}
                           {order.status !== 'cancelled' && order.status !== 'shipped' && (
@@ -679,24 +681,8 @@ function OrderRow({
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
 }) {
-  const nextStatus: Record<string, string> = {
-    pending: 'confirmed',
-    confirmed: 'packed',
-    packed: 'shipped',
-    shipped: 'shipped',
-    cancelled: 'cancelled',
-  };
-
-  const nextLabel: Record<string, string> = {
-    pending: 'Confirm',
-    confirmed: 'Pack',
-    packed: 'Ship',
-    shipped: 'Done',
-    cancelled: 'Cancelled',
-  };
-
   const canAdvance = order.status !== 'shipped' && order.status !== 'cancelled';
-  const next = nextStatus[order.status];
+  const next = NEXT_STATUS[order.status];
 
   return (
     <>
@@ -766,7 +752,7 @@ function OrderRow({
                 disabled={isUpdating}
                 className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
               >
-                {nextLabel[order.status]}
+                {NEXT_LABEL[order.status]}
               </button>
             )}
             {order.status !== 'cancelled' && order.status !== 'shipped' && (

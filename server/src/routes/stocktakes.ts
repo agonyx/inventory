@@ -14,9 +14,6 @@ import { parseSort } from '../utils/sort';
 
 const stocktakeRepo = () => AppDataSource.getRepository(Stocktake);
 const stocktakeItemRepo = () => AppDataSource.getRepository(StocktakeItem);
-const inventoryRepo = () => AppDataSource.getRepository(InventoryLevel);
-const adjustmentRepo = () => AppDataSource.getRepository(StockAdjustment);
-const auditRepo = () => AppDataSource.getRepository(AuditLog);
 
 const createStocktakeSchema = z.object({
   locationId: z.string().uuid(),
@@ -202,24 +199,31 @@ app.patch('/:id/items/:itemId', zValidator('json', updateItemSchema), async (c) 
   const itemId = c.req.param('itemId');
   const body = c.req.valid('json');
 
-  const stocktake = await stocktakeRepo().findOne({ where: { id } });
-  if (!stocktake) throw new AppError(404, ErrorCode.NOT_FOUND, 'Stocktake not found');
-  if (stocktake.status !== StocktakeStatus.IN_PROGRESS) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Can only update items on in-progress stocktakes');
-  }
+  const result = await AppDataSource.transaction(async (manager) => {
+    const stocktake = await manager.findOne(Stocktake, {
+      where: { id },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!stocktake) throw new AppError(404, ErrorCode.NOT_FOUND, 'Stocktake not found');
+    if (stocktake.status !== StocktakeStatus.IN_PROGRESS) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Can only update items on in-progress stocktakes');
+    }
 
-  const item = await stocktakeItemRepo().findOne({
-    where: { id: itemId, stocktakeId: id },
-    relations: ['variant'],
+    const item = await manager.findOne(StocktakeItem, {
+      where: { id: itemId, stocktakeId: id },
+      relations: ['variant'],
+    });
+    if (!item) throw new AppError(404, ErrorCode.NOT_FOUND, 'Stocktake item not found');
+
+    item.countedQuantity = body.countedQuantity;
+    item.discrepancy = body.countedQuantity - item.systemQuantity;
+    item.notes = body.notes || item.notes;
+    await manager.save(item);
+
+    return item;
   });
-  if (!item) throw new AppError(404, ErrorCode.NOT_FOUND, 'Stocktake item not found');
 
-  item.countedQuantity = body.countedQuantity;
-  item.discrepancy = body.countedQuantity - item.systemQuantity;
-  item.notes = body.notes || item.notes;
-  await stocktakeItemRepo().save(item);
-
-  return c.json(item);
+  return c.json(result);
 });
 
 app.delete('/:id', async (c) => {

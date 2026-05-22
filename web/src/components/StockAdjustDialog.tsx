@@ -28,7 +28,6 @@ export default function StockAdjustDialog({
   const [quantityChange, setQuantityChange] = useState('');
   const [reason, setReason] = useState('received');
   const [notes, setNotes] = useState('');
-  const [adjustedBy, setAdjustedBy] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const adjustStock = useAdjustStock();
@@ -58,7 +57,6 @@ export default function StockAdjustDialog({
         quantityChange: change,
         reason,
         notes: notes.trim() || undefined,
-        adjustedBy: adjustedBy.trim() || undefined,
       });
       onClose();
     } catch (err: unknown) {
@@ -196,19 +194,6 @@ export default function StockAdjustDialog({
               rows={2}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               placeholder="Optional notes about this adjustment..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Adjusted By
-            </label>
-            <input
-              type="text"
-              value={adjustedBy}
-              onChange={(e) => setAdjustedBy(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Your name (optional)"
             />
           </div>
 

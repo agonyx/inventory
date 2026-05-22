@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { AppDataSource } from '../data-source';
 import { AuditLog, AuditAction } from '../entities/AuditLog';
 import { AppError, ErrorCode } from '../errors/app-error';
+import { errorHandler } from '../middleware/error-handler';
 import { parsePagination, buildPaginationResponse } from '../utils/pagination';
 
 const auditRepo = () => AppDataSource.getRepository(AuditLog);
@@ -18,6 +19,7 @@ const listQuerySchema = z.object({
 });
 
 const app = new Hono();
+app.onError(errorHandler);
 
 app.get('/', zValidator('query', listQuerySchema), async (c) => {
   const { entityType, entityId, action, performedBy, from, to } = c.req.valid('query');

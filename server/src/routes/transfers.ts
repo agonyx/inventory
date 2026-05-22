@@ -11,11 +11,9 @@ import { AppError, ErrorCode } from '../errors/app-error';
 import { errorHandler } from '../middleware/error-handler';
 import { parsePagination, buildPaginationResponse, paginate } from '../utils/pagination';
 import { parseSort } from '../utils/sort';
+import { escapeLike } from '../utils/helpers';
 
 const transferRepo = () => AppDataSource.getRepository(Transfer);
-const transferItemRepo = () => AppDataSource.getRepository(TransferItem);
-const inventoryRepo = () => AppDataSource.getRepository(InventoryLevel);
-const auditRepo = () => AppDataSource.getRepository(AuditLog);
 
 const createTransferSchema = z.object({
   fromLocationId: z.string().uuid(),
@@ -55,11 +53,9 @@ app.get('/', async (c) => {
 
   let where: any;
   if (query.search) {
-    const pattern = Like(`%${query.search}%`);
+    const pattern = Like(`%${escapeLike(query.search)}%`);
     where = [
       { ...conditions, notes: pattern },
-      { ...conditions, fromLocationId: pattern },
-      { ...conditions, toLocationId: pattern },
     ];
   } else {
     where = Object.keys(conditions).length > 0 ? conditions : {};

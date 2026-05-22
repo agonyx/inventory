@@ -3,8 +3,10 @@ import { z } from 'zod';
 import { AppDataSource } from '../data-source';
 import { WebhookConfig, WebhookEventType } from '../entities/WebhookConfig';
 import { AppError, ErrorCode } from '../errors/app-error';
+import { errorHandler } from '../middleware/error-handler';
 
 const app = new Hono();
+app.onError(errorHandler);
 
 const repo = () => AppDataSource.getRepository(WebhookConfig);
 
