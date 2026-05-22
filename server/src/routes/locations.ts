@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { AppDataSource } from '../data-source';
 import { Location } from '../entities/Location';
 import { InventoryLevel } from '../entities/InventoryLevel';
+import { Transfer } from '../entities/Transfer';
+import { Stocktake } from '../entities/Stocktake';
 import { AppError, ErrorCode } from '../errors/app-error';
 import { errorHandler } from '../middleware/error-handler';
 import { parsePagination, buildPaginationResponse } from '../utils/pagination';
@@ -88,6 +90,18 @@ app.patch('/:id', zValidator('json', createSchema.partial()), async (c) => {
 // DELETE /api/locations/:id
 app.delete('/:id', async (c) => {
   const id = c.req.param('id');
+
+  const [invCount, transferFromCount, transferToCount, stocktakeCount] = await Promise.all([
+    AppDataSource.getRepository(InventoryLevel).count({ where: { locationId: id } }),
+    AppDataSource.getRepository(Transfer).count({ where: { fromLocationId: id } }),
+    AppDataSource.getRepository(Transfer).count({ where: { toLocationId: id } }),
+    AppDataSource.getRepository(Stocktake).count({ where: { locationId: id } }),
+  ]);
+
+  if (invCount > 0 || transferFromCount > 0 || transferToCount > 0 || stocktakeCount > 0) {
+    throw new AppError(409, ErrorCode.CONFLICT, 'Cannot delete location with associated inventory, transfers, or stocktakes');
+  }
+
   const result = await locationRepo().delete(id);
   if (result.affected === 0) throw new AppError(404, ErrorCode.NOT_FOUND, 'Location not found');
   return c.json({ success: true });

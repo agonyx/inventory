@@ -30,7 +30,6 @@ const createPOSchema = z.object({
 
 const updatePOSchema = z.object({
   notes: z.string().optional(),
-  status: z.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']).optional(),
 });
 
 const receiveItemSchema = z.object({
@@ -164,7 +163,6 @@ app.patch('/:id', zValidator('json', updatePOSchema), async (c) => {
   if (!po) throw new AppError(404, ErrorCode.NOT_FOUND, 'Purchase order not found');
 
   if (data.notes !== undefined) po.notes = data.notes;
-  if (data.status !== undefined) po.status = data.status as PurchaseOrderStatus;
   await poRepo().save(po);
 
   await auditRepo().save(auditRepo().create({

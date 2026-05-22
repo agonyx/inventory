@@ -19,7 +19,6 @@ const adjustSchema = z.object({
   quantityChange: z.number().int(),
   reason: z.nativeEnum(AdjustmentReason).default(AdjustmentReason.MANUAL),
   notes: z.string().optional(),
-  adjustedBy: z.string().optional(),
 });
 
 const INVENTORY_SORT_COLUMNS = ['quantity', 'reservedQuantity', 'createdAt'];
@@ -105,6 +104,8 @@ app.post('/:id/adjust', zValidator('json', adjustSchema), async (c) => {
   const id = c.req.param('id');
   const data = c.req.valid('json');
 
+  const adjustedBy = c.get('auth')?.userId || null;
+
   const result = await AppDataSource.transaction(async (manager) => {
     const level = await manager.findOne(InventoryLevel, {
       where: { id },
@@ -134,7 +135,7 @@ app.post('/:id/adjust', zValidator('json', adjustSchema), async (c) => {
       newQuantity: newQty,
       reason: data.reason,
       notes: data.notes || null,
-      adjustedBy: data.adjustedBy || null,
+      adjustedBy,
     });
     await manager.save(adjustment);
 
@@ -144,7 +145,7 @@ app.post('/:id/adjust', zValidator('json', adjustSchema), async (c) => {
       entityId: id,
       oldValues: { quantity: previousQty },
       newValues: { quantity: newQty },
-      performedBy: data.adjustedBy || null,
+      performedBy: adjustedBy,
       notes: `Stock adjusted: ${data.quantityChange > 0 ? '+' : ''}${data.quantityChange}. Reason: ${data.reason}`,
     });
     await manager.save(audit);

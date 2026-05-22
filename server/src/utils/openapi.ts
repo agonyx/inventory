@@ -77,7 +77,7 @@ const spec = {
       get: {
         tags: ['Auth'],
         summary: 'Get current user',
-        security: [],
+        security: [{ bearerAuth: [] }],
         responses: {
           '200': { description: 'Current user info' },
           '401': { description: 'Not authenticated' },
@@ -88,7 +88,7 @@ const spec = {
       patch: {
         tags: ['Auth'],
         summary: 'Update profile',
-        security: [],
+        security: [{ bearerAuth: [] }],
         responses: {
           '200': { description: 'Profile updated' },
           '400': { description: 'Invalid input' },

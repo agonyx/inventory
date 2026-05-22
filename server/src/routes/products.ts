@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { In, ILike, Not, IsNull } from 'typeorm';
+import { In, ILike, Not, IsNull, Brackets } from 'typeorm';
 import { writeFile, unlink, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -100,43 +100,54 @@ app.get('/', async (c) => {
   }
 
   if (stockStatus) {
-    let effectiveWhere: any;
+    const qb = productRepo().createQueryBuilder('p')
+      .leftJoinAndSelect('p.variants', 'v')
+      .leftJoinAndSelect('v.inventoryLevels', 'il')
+      .leftJoinAndSelect('il.location', 'loc');
+
     if (search) {
-      const base: any = { ...where };
-      if (barcodeProductIds) base.id = In(barcodeProductIds);
-      effectiveWhere = [
-        { ...base, name: ILike(`%${search}%`) },
-        { ...base, sku: ILike(`%${search}%`) },
-      ];
-    } else {
-      effectiveWhere = barcodeProductIds
-        ? { ...where, id: In(barcodeProductIds) }
-        : where;
+      qb.andWhere(new Brackets(qb2 => {
+        qb2.where('p.name ILIKE :search', { search: `%${search}%` })
+          .orWhere('p.sku ILIKE :search', { search: `%${search}%` });
+      }));
     }
-    const allResults = await productRepo().find({
-      where: effectiveWhere,
-      relations,
-      select: ['id', 'name', 'sku', 'category', 'price', 'lowStockThreshold', 'supplierId', 'images', 'createdAt', 'updatedAt'],
-      order: { [sortBy]: sortDir },
-    });
+    if (category) {
+      qb.andWhere('p.category = :category', { category });
+    }
+    if (barcodeProductIds) {
+      qb.andWhere('p.id IN (:...barcodeProductIds)', { barcodeProductIds });
+    }
 
-    const filtered = allResults.filter((p) => {
-      const totalStock = computeTotalStock(p);
-      const threshold = p.lowStockThreshold ?? 0;
-      switch (stockStatus) {
-        case 'in_stock':
-          return totalStock > threshold;
-        case 'low_stock':
-          return totalStock > 0 && totalStock <= threshold;
-        case 'out_of_stock':
-          return totalStock === 0;
-        default:
-          return true;
-      }
-    });
+    const stockSq = AppDataSource.createQueryBuilder()
+      .subQuery()
+      .select('COALESCE(SUM(sub_il.quantity - sub_il.reservedQuantity), 0)')
+      .from(InventoryLevel, 'sub_il')
+      .innerJoin(ProductVariant, 'sub_v', 'sub_v.id = sub_il.variantId')
+      .where('sub_v.productId = p.id')
+      .getQuery();
 
-    total = filtered.length;
-    products = filtered.slice((page - 1) * limit, page * limit);
+    const threshold = 'COALESCE(p.lowStockThreshold, 0)';
+
+    switch (stockStatus) {
+      case 'in_stock':
+        qb.andWhere(`(${stockSq}) > ${threshold}`);
+        break;
+      case 'low_stock':
+        qb.andWhere(`(${stockSq}) > 0 AND (${stockSq}) <= ${threshold}`);
+        break;
+      case 'out_of_stock':
+        qb.andWhere(`(${stockSq}) = 0`);
+        break;
+    }
+
+    const [results, count] = await qb
+      .orderBy(`p.${sortBy}`, sortDir)
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    products = results;
+    total = count;
   } else {
     // Build TypeORM where with OR for search
     let findWhere: any;
@@ -266,46 +277,44 @@ app.get('/:id', async (c) => {
 // POST /api/products — create product with optional variants
 app.post('/', zValidator('json', createSchema), async (c) => {
   const data = c.req.valid('json');
-  // Save product first to get an ID, then create variants with explicit productId
-  const rawVariants = data.variants || [];
-  const product = productRepo().create(data);
-  (product as any).variants = [];
-  await productRepo().save(product);
+  const saved = await AppDataSource.transaction(async (manager) => {
+    const rawVariants = data.variants || [];
+    const product = manager.create(Product, data);
+    (product as any).variants = [];
+    await manager.save(Product, product);
 
-  for (const v of rawVariants) {
-    const variant = variantRepo().create({ ...v, productId: product.id });
-    await variantRepo().save(variant);
-  }
+    for (const v of rawVariants) {
+      const variant = manager.create(ProductVariant, { ...v, productId: product.id });
+      await manager.save(ProductVariant, variant);
+    }
 
-  // Auto-create inventory levels for each variant at all existing locations
-  const savedVariants = rawVariants.length > 0
-    ? await variantRepo().findBy({ productId: product.id })
-    : [];
-  if (savedVariants.length > 0) {
-    const locations = await locationRepo().find();
-    for (const variant of savedVariants) {
-      for (const loc of locations) {
-        // Check if inventory level already exists
-        const existing = await inventoryRepo().findOne({
-          where: { variantId: variant.id, locationId: loc.id },
-        });
-        if (!existing) {
-          const level = inventoryRepo().create({
-            variantId: variant.id,
-            locationId: loc.id,
-            quantity: 0,
-            reservedQuantity: 0,
+    const savedVariants = rawVariants.length > 0
+      ? await manager.findBy(ProductVariant, { productId: product.id })
+      : [];
+    if (savedVariants.length > 0) {
+      const locations = await manager.find(Location);
+      for (const variant of savedVariants) {
+        for (const loc of locations) {
+          const existing = await manager.findOne(InventoryLevel, {
+            where: { variantId: variant.id, locationId: loc.id },
           });
-          await inventoryRepo().save(level);
+          if (!existing) {
+            const level = manager.create(InventoryLevel, {
+              variantId: variant.id,
+              locationId: loc.id,
+              quantity: 0,
+              reservedQuantity: 0,
+            });
+            await manager.save(InventoryLevel, level);
+          }
         }
       }
     }
-  }
 
-  // Reload with relations
-  const saved = await productRepo().findOne({
-    where: { id: product.id },
-    relations: ['variants', 'variants.inventoryLevels', 'variants.inventoryLevels.location'],
+    return await manager.findOne(Product, {
+      where: { id: product.id },
+      relations: ['variants', 'variants.inventoryLevels', 'variants.inventoryLevels.location'],
+    });
   });
   return c.json(saved, 201);
 });

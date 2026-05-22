@@ -2,6 +2,10 @@ import nodemailer from 'nodemailer';
 import type { Order } from '../entities/Order';
 import type { LowStockAlert } from './alerts';
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
 const SMTP_USER = process.env.SMTP_USER || '';
@@ -76,8 +80,8 @@ export async function sendOrderConfirmation(order: OrderWithItems): Promise<void
     .map(
       (item) => `
       <tr>
-        <td>${(item as any).variant?.product?.name || (item as any).variant?.name || item.externalSku || 'N/A'}</td>
-        <td>${item.externalSku || (item as any).variant?.sku || 'N/A'}</td>
+        <td>${escapeHtml((item as any).variant?.product?.name || (item as any).variant?.name || item.externalSku || 'N/A')}</td>
+        <td>${escapeHtml(item.externalSku || (item as any).variant?.sku || 'N/A')}</td>
         <td class="text-right">${item.quantity}</td>
         <td class="text-right">$${Number(item.unitPrice).toFixed(2)}</td>
         <td class="text-right">$${(Number(item.unitPrice) * item.quantity).toFixed(2)}</td>
@@ -93,8 +97,8 @@ export async function sendOrderConfirmation(order: OrderWithItems): Promise<void
       <div class="container">
         <div class="header"><h1>Order Confirmation</h1></div>
         <div class="body">
-          <p>Order <strong>${order.externalOrderId}</strong> has been received.</p>
-          <p><strong>Customer:</strong> ${order.customerName}<br>
+          <p>Order <strong>${escapeHtml(order.externalOrderId)}</strong> has been received.</p>
+          <p><strong>Customer:</strong> ${escapeHtml(order.customerName)}<br>
              <strong>Date:</strong> ${order.createdAt ? new Date(order.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}</p>
           <table>
             <thead>
@@ -119,7 +123,7 @@ export async function sendShippingConfirmation(order: OrderWithItems): Promise<v
     .map(
       (item) => `
       <tr>
-        <td>${(item as any).variant?.product?.name || (item as any).variant?.name || item.externalSku || 'N/A'}</td>
+        <td>${escapeHtml((item as any).variant?.product?.name || (item as any).variant?.name || item.externalSku || 'N/A')}</td>
         <td class="text-right">${item.quantity}</td>
       </tr>`,
     )
@@ -133,11 +137,11 @@ export async function sendShippingConfirmation(order: OrderWithItems): Promise<v
       <div class="container">
         <div class="header"><h1>Shipping Confirmation</h1></div>
         <div class="body">
-          <p>Order <strong>${order.externalOrderId}</strong> has been shipped!</p>
-          <p><strong>Customer:</strong> ${order.customerName}<br>
-             <strong>Carrier:</strong> ${order.shippingCarrier || 'N/A'}<br>
-             <strong>Tracking #:</strong> ${order.trackingNumber || 'N/A'}</p>
-          ${order.shippingAddress ? `<p><strong>Shipping Address:</strong><br>${order.shippingAddress}</p>` : ''}
+          <p>Order <strong>${escapeHtml(order.externalOrderId)}</strong> has been shipped!</p>
+          <p><strong>Customer:</strong> ${escapeHtml(order.customerName)}<br>
+             <strong>Carrier:</strong> ${escapeHtml(order.shippingCarrier || 'N/A')}<br>
+             <strong>Tracking #:</strong> ${escapeHtml(order.trackingNumber || 'N/A')}</p>
+          ${order.shippingAddress ? `<p><strong>Shipping Address:</strong><br>${escapeHtml(order.shippingAddress)}</p>` : ''}
           <table>
             <thead>
               <tr><th>Product</th><th class="text-right">Qty</th></tr>
@@ -158,10 +162,10 @@ export async function sendLowStockAlert(alerts: LowStockAlert[]): Promise<void> 
     .map(
       (a) => `
       <tr>
-        <td>${a.productName}</td>
-        <td>${a.sku}</td>
-        <td>${a.variantName}</td>
-        <td>${a.locationName}</td>
+        <td>${escapeHtml(a.productName)}</td>
+        <td>${escapeHtml(a.sku)}</td>
+        <td>${escapeHtml(a.variantName)}</td>
+        <td>${escapeHtml(a.locationName)}</td>
         <td class="text-right"><span class="badge ${a.currentQuantity === 0 ? 'badge-danger' : 'badge-warning'}">${a.currentQuantity}</span></td>
         <td class="text-right">${a.threshold}</td>
         <td class="text-right">${a.deficit}</td>

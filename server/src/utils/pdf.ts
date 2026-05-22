@@ -42,6 +42,10 @@ export function pdfToBuffer(doc: PDFDoc): Promise<Buffer> {
 /**
  * Build response headers for a PDF response.
  */
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^\w.\-]/g, '_').replace(/_{2,}/g, '_');
+}
+
 export function pdfResponseHeaders(
   filename: string,
   download: boolean,
@@ -49,7 +53,7 @@ export function pdfResponseHeaders(
   const disposition = download ? 'attachment' : 'inline';
   return {
     'Content-Type': 'application/pdf',
-    'Content-Disposition': `${disposition}; filename="${filename}"`,
+    'Content-Disposition': `${disposition}; filename="${sanitizeFilename(filename)}"`,
   };
 }
 

@@ -22,7 +22,7 @@ export interface WebhookPayload {
 }
 
 export async function processWebhookOrder(payload: WebhookPayload): Promise<Order> {
-  return await AppDataSource.transaction(async (manager) => {
+  const result = await AppDataSource.transaction(async (manager) => {
     const existing = await manager.findOne(Order, { where: { externalOrderId: payload.externalOrderId } });
     if (existing) {
       throw new AppError(409, ErrorCode.CONFLICT, `Order ${payload.externalOrderId} already exists`);
@@ -46,19 +46,17 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
         throw new AppError(404, ErrorCode.NOT_FOUND, `Variant with SKU ${item.sku} not found`);
       }
 
-      // Query inventory level directly — find one with sufficient stock
       const inventoryLevels = await manager.find(InventoryLevel, {
         where: { variantId: variant.id },
         order: { quantity: 'DESC' },
+        lock: { mode: 'pessimistic_write' },
       });
       if (inventoryLevels.length === 0) {
         throw new AppError(404, ErrorCode.NOT_FOUND, `No inventory found for SKU ${item.sku}`);
       }
 
-      // Use the location with the most stock
       let remainingQty = item.quantity;
 
-      // Try to allocate across multiple locations if needed
       let primaryAvailable = inventoryLevels.reduce(
         (sum, il) => sum + il.quantity - il.reservedQuantity, 0,
       );
@@ -66,7 +64,6 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
         throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient stock for SKU ${item.sku}: requested ${item.quantity}, available ${primaryAvailable}`);
       }
 
-      // Allocate from locations with most stock first
       for (const il of inventoryLevels) {
         if (remainingQty <= 0) break;
         const avail = il.quantity - il.reservedQuantity;
@@ -104,10 +101,12 @@ export async function processWebhookOrder(payload: WebhookPayload): Promise<Orde
 
     order.items = orderItems;
 
-    sendOrderConfirmation(order).catch((err) => {
-      console.error('[orderProcessor] Failed to send order confirmation email:', err);
-    });
-
     return order;
   });
+
+  sendOrderConfirmation(result).catch((err) => {
+    console.error('[orderProcessor] Failed to send order confirmation email:', err);
+  });
+
+  return result;
 }

@@ -201,12 +201,24 @@ app.patch('/:id/status', zValidator('json', statusSchema), async (c) => {
       if (!level) continue;
 
       if (oldStatus === OrderStatus.PENDING && status === OrderStatus.CANCELLED) {
+        if (level.reservedQuantity < item.quantity) {
+          throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient reserved stock for variant ${item.variant.id}`);
+        }
         level.reservedQuantity -= item.quantity;
       } else if (oldStatus === OrderStatus.CONFIRMED && status === OrderStatus.PACKED) {
+        if (level.reservedQuantity < item.quantity) {
+          throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient reserved stock for variant ${item.variant.id}`);
+        }
         level.reservedQuantity -= item.quantity;
       } else if (oldStatus === OrderStatus.CONFIRMED && status === OrderStatus.CANCELLED) {
+        if (level.reservedQuantity < item.quantity) {
+          throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient reserved stock for variant ${item.variant.id}`);
+        }
         level.reservedQuantity -= item.quantity;
       } else if (oldStatus === OrderStatus.PACKED && status === OrderStatus.SHIPPED) {
+        if (level.quantity < item.quantity) {
+          throw new AppError(400, ErrorCode.INSUFFICIENT_STOCK, `Insufficient stock for variant ${item.variant.id}`);
+        }
         level.quantity -= item.quantity;
       }
 

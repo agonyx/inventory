@@ -99,6 +99,10 @@ app.delete('/:id', async (c) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
 
+  if (auth.role !== 'admin') {
+    throw new AppError(403, ErrorCode.FORBIDDEN, 'Only admins can delete users');
+  }
+
   if (id === auth.userId) {
     throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot delete yourself');
   }
