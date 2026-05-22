@@ -33,7 +33,7 @@ import { generateTokens } from '../src/services/auth';
 export const AUTH_TOKEN = process.env.AUTH_TOKEN || 'niche-inventory-secret-2026';
 
 // Create a test user and generate a JWT token for it
-export let testUser: User | null = null;
+let testUser: User | null = null;
 
 export async function getTestAuthHeader() {
   if (!testUser) {

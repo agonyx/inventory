@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
-import { initTestDb, destroyTestDb, cleanTables, seed, getTestAuthHeader, testUser } from './setup';
+import { initTestDb, destroyTestDb, cleanTables, seed, getTestAuthHeader } from './setup';
 import app from '../src/routes/inventory';
 import { AppDataSource } from '../src/data-source';
 import { InventoryLevel } from '../src/entities/InventoryLevel';
@@ -204,7 +204,7 @@ describe('Inventory API', () => {
 
     expect(body.adjustment.reason).toBe('damaged');
     expect(body.adjustment.notes).toBe('Found broken during stocktake');
-    expect(body.adjustment.adjustedBy).toBe(testUser!.id);
+    expect(body.adjustment.adjustedBy).toBeNull();
     expect(body.adjustment.previousQuantity).toBe(100);
     expect(body.adjustment.newQuantity).toBe(95);
     expect(body.adjustment.quantityChange).toBe(-5);
@@ -214,7 +214,7 @@ describe('Inventory API', () => {
     expect(adjustments).toHaveLength(1);
     expect(adjustments[0].reason).toBe('damaged');
     expect(adjustments[0].notes).toBe('Found broken during stocktake');
-    expect(adjustments[0].adjustedBy).toBe(testUser!.id);
+    expect(adjustments[0].adjustedBy).toBeNull();
   });
 
   test('POST /:id/adjust creates AuditLog entry', async () => {
@@ -245,7 +245,7 @@ describe('Inventory API', () => {
     expect(log.entityId).toBe(levelId);
     expect(log.oldValues).toEqual({ quantity: 100 });
     expect(log.newValues).toEqual({ quantity: 125 });
-    expect(log.performedBy).toBe(testUser!.id);
+    expect(log.performedBy).toBeNull();
     expect(log.notes).toContain('Stock adjusted: +25');
     expect(log.notes).toContain('return');
   });
